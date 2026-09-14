@@ -13,12 +13,13 @@ local Monsters = require("AP_CLIENT/Monsters")
 local Weapons = require("AP_CLIENT/Weapons")
 local Quests = require("AP_CLIENT/Quests")
 local Tracker = require("AP_CLIENT/Tracker")
+local Deathlink = require("AP_CLIENT/Deathlink")
 
 -- Apworld version this client was built against. Compared on slot
 -- connect against slot_data.world_version; mismatch surfaces a chat
 -- warning. Keep in sync with ap_world/archipelago.json's world_version
 -- (the release workflow's drift guard fails the build if they diverge).
-local APWORLD_VERSION = "0.1.1"
+local APWORLD_VERSION = "0.2.0"
 
 local function log_info(msg) log.info("[MHRiseAP] " .. msg) end
 
@@ -208,7 +209,28 @@ AP_REF.on_print_json = function(msg, extra)
     send_chat(string.format("[AP] Sent %s to %s.", item_name, recipient))
 end
 
+-- Handle incoming deathlink messages
+AP_REF.on_bounced = function(msg)
+    log_info("Bounce message arrived")
+
+    -- Only interact with deathlink messages if deathlink is on
+    if AP_REF.APTags[1] == "DeathLink" then
+        if msg.tags and msg.data.time and msg.data.source then
+            if msg.data.time == Deathlink.GetLastDeathTime() then return end
+            Deathlink.KillHunter()
+
+            -- Display deathlink message
+            if msg.data.cause then
+                send_chat("[AP] " .. msg.data.cause)
+            else
+                send_chat(string.format("[AP] %s died", msg.data.source))
+            end
+        end
+    end
+end
+
 Monsters.InstallHook()
+Deathlink.InstallHook()
 
 re.on_frame(function()
     Tracker.Draw()

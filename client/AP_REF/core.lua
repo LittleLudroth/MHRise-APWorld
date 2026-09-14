@@ -10,7 +10,8 @@ AP_REF.AP = AP
 AP_REF.APGameName = ""
 AP_REF.APItemsHandling = 7 -- shouldn't need to change this
 AP_REF.APTags = {} -- these are reserved for any additional tags, Lua-APClientPP is always applied, and TextOnly when relevant
-
+-- NOTE: Code Currently assumes that the only extra tag will be DeathLink.
+-- If more tags are added, refactor the deathlink toggle button
 AP_REF.APColors = {
     red="EE0000",
     blue="6495ED",
@@ -249,12 +250,11 @@ local function set_slot_connected_handler(callback)
 			table.insert(tags, "TextOnly")
 		end
 
-		for i, val in ipairs(AP_REF.APTags) do
-			table.insert(tags, val)
-		end
+		-- NOTE: If APTags ever gets used for more tags, add a loop to insert them here
 
         if slot_data.death_link then
             table.insert(tags, "DeathLink")
+			AP_REF.APTags = {"DeathLink"}
         end
 
         AP_REF.APClient:ConnectUpdate(nil, tags) -- set deathlink tag if needed
@@ -432,11 +432,39 @@ local function main_menu()
 			end
 		end
 
+		
+		-- Add deathlink toggle button on new line below login when connected
+		if connected then
+			imgui.text("Deathlink: ")
+			imgui.same_line()
+			if AP_REF.APTags[1] == "DeathLink" then
+				if imgui.button("Disable") then
+						-- Remove deathlink tag and update
+						if AP_REF.APClient:ConnectUpdate(nil, {"Lua-APClientPP"}) then
+							AP_REF.APTags = {}
+							table.insert(textLog, {{text = "Deathlink disabled"}})
+						else
+							table.insert(textLog, {{text = "ConnectionUpdate failed"}})
+						end
+				end
+			else
+				if imgui.button("Enable") then
+					-- Add deathlink tag and update
+					if AP_REF.APClient:ConnectUpdate(nil, {"Lua-APClientPP", "DeathLink"}) then
+						AP_REF.APTags = {"DeathLink"}
+						table.insert(textLog, {{text = tostring(AP_REF.APTags)}})
+					else
+						table.insert(textLog, {{text = "ConnectionUpdate failed"}})
+					end
+				end
+			end
+		end	
+		
 		imgui.pop_item_width()
 		imgui.separator()
 
 		-- Chat Log Display
-		imgui.begin_child_window("ScrollRegion", Vector2f.new(size.x-5, size.y-55), true, 0)
+		imgui.begin_child_window("ScrollRegion", Vector2f.new(size.x-5, size.y-60), true, 0) -- original was y - 55
 		imgui.push_style_var(14, Vector2f.new(0,0))
 
 		for i, value in ipairs(textLog) do

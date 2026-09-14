@@ -332,6 +332,7 @@ class MHRiseWorld(World):
         slot_data: dict[str, Any] = {
             "world_version": WORLD_VERSION,
             "mode": mode_str,
+            "death_link": bool(self.options.deathlink.value),
         }
         if self.options.mode.value == Mode.option_quest_rando:
             # quest_no keys MUST be strings — REFramework's Lua VM

@@ -36,6 +36,10 @@ Lookups.tier_urgents = {}    -- "QL int str" -> that tier's urgent quest_no (int
 Lookups.goal_quest = nil     -- int (quest_no)
 Lookups.starting_quest = nil -- int (quest_no)
 
+-- Deathlink flag
+-- Used to determine whether or not the client should send or react to deathlink
+Lookups.death_link = false -- bool
+
 function Lookups.Reset()
     Lookups.connected = false
     Lookups.mode = "hunt_a_thon"
@@ -52,6 +56,7 @@ function Lookups.Reset()
     Lookups.tier_urgents = {}
     Lookups.goal_quest = nil
     Lookups.starting_quest = nil
+    Lookups.death_link = false
     -- Reset Weapons cache too — kept on the Weapons module rather than
     -- here so Lookups stays monster-focused, but cleared in lockstep.
     Weapons.enabled = false
@@ -65,6 +70,7 @@ end
 -- Common:
 --   mode:                       "hunt_a_thon" | "quest_rando"
 --   world_version:              string
+--   death_link:                  bool
 --
 -- HuntAThon:
 --   monster_em_type_map:        {[item_name]: em_type}
@@ -99,6 +105,12 @@ function Lookups.Load(slot_data)
     end
 
     local mode = slot_data.mode
+
+    -- set deathlink flag, default to false if not defined
+    if slot_data.death_link ~= nil then
+        Lookups.death_link = slot_data.death_link
+    end
+
     if mode == "quest_rando" then
         Lookups.mode = "quest_rando"
         local swaps = slot_data.quest_swaps

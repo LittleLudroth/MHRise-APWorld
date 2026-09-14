@@ -16,6 +16,7 @@ Options that apply per mode:
   precollected as the starter.
 - MonsterCount: HuntAThon only — QuestRando's pool size is derived
   from the village quest catalog.
+- Deathlink: both modes. Enables or disables deathlink.
 """
 
 from __future__ import annotations
@@ -118,6 +119,10 @@ class MonsterCount(Range):
     range_end = 72
     default = 15
 
+class Deathlink(Toggle):
+    """Enable or disable deathlink. When enabled,
+    a faint will count as a death. This setting can be toggled in game."""
+    display_name = "Deathlink"
 
 @dataclass
 class MHRiseOptions(PerGameCommonOptions):
@@ -128,3 +133,4 @@ class MHRiseOptions(PerGameCommonOptions):
     weapon_pool: WeaponPool
     randomize_quest_monsters: RandomizeQuestMonsters
     monster_count: MonsterCount
+    deathlink: Deathlink
