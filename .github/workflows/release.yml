@@ -68,6 +68,7 @@ jobs:
               "client/AP_CLIENT/Session.lua",
               "client/AP_CLIENT/Tracker.lua",
               "client/AP_CLIENT/Weapons.lua",
+              "client/AP_CLIENT/Deathlink.lua",
           ]
 
           out = Path("mhrise-client.zip")
