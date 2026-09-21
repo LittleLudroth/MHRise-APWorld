@@ -3,10 +3,15 @@
 Two mutually-exclusive modes via the `mode` option:
 - HuntAThon (default): per-monster license soft-gate.
 - QuestRando: per-quest `Unlock:` items soft-gate clear checks; each
-  pool quest's spawned monster is randomly swapped. Goal = clearing
-  "Comeuppance".
+  pool quest's spawned monster is randomly swapped. 
 
 Options that apply per mode:
+- QuestRandoPool: QuestRando only — select whether QuestRando
+  should randomize village quests, the base game hub, or the
+  base game and master rank hub. Sunbreak must be enabled to play
+  master rank QuestRando
+- Questsanity: QuestRando only — select whether or not QuestRando
+  includes optional quests.
 - IncludeSunbreak: both modes.
 - IncludeRisen: HuntAThon only (no Risen variant currently appears in
   any vanilla quest, so a no-op in QuestRando — wired anyway).
@@ -14,6 +19,8 @@ Options that apply per mode:
   fires at clear time (same soft-gate shape as HuntAThon's hunt
   gate); weapon licenses fill spare itempool slots and one is
   precollected as the starter.
+- StartingWeapon: both modes. Select a specific weapon license to
+  start with. Does nothing if IncludeWeapons is disabled.
 - MonsterCount: HuntAThon only — QuestRando's pool size is derived
   from the village quest catalog.
 - Deathlink: both modes. Enables or disables deathlink.
@@ -23,7 +30,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from Options import Choice, DefaultOnToggle, OptionSet, PerGameCommonOptions, Range, Toggle
+from Options import Choice, DefaultOnToggle, OptionSet, PerGameCommonOptions, Range, Toggle, FreeText
 
 from .data.weapons import WEAPONS
 
@@ -35,20 +42,56 @@ class Mode(Choice):
 
     - `hunt_a_thon` (default): hunting a large monster requires its
       license. Licenses are scattered across the multiworld. Standard
-      hunt-for-keys loop.
-    - `quest_rando`: each village quest's boss monster is randomly
-      swapped (within per-map compatibility). Clearing a quest sends
-      AP checks when the matching `Unlock: <quest>` and — if weapons
-      are enabled — the wielded weapon's license are held. Goal =
-      clearing the final village urgent "Comeuppance" (its boss stays
-      as the intended Magnamalo). MonsterCount is ignored in this
-      mode; the rest of the options apply."""
+      hunt-for-keys loop. Requires a save file at HR 100 with the ability
+      to clear Crimson Glow Valstrax for base game, a save file at MR 10+
+      with the ability to clear P. Malzeno and Amatsu if you enable Sunbreak,
+      and a save file at MR 180+ with the ability to clear Risen Shagaru Magala
+      for Sunbreak with Risen Elders enabled. 
+    - `quest_rando`: completing a quest requires its unlock item. Unlocks
+      are scattered around the multiworld. Clear your way through quests 
+      until reaching the goal. MonsterCount is ignored in this mode;
+      the rest of the options apply. This option is intended for
+      new save files.
+      """
 
     display_name = "Mode"
     option_hunt_a_thon = 0
     option_quest_rando = 1
     default = 0
 
+class QuestRandoPool(Choice):
+    """
+    QuestRando Only: Select which pool of quests should be randomized.
+    - `quest_rando_village` (default): each village quest's boss monster
+      is randomly swapped (within per-map compatibility). Clearing a quest
+      sends AP checks when the matching `Unlock: <quest>` and — if weapons
+      are enabled — the wielded weapon's license are held. Goal =
+      clearing the final village urgent "Comeuppance".
+    - `quest_rando_hub`: each low/high rank hub quest's boss monster is
+      randomly swapped (within per-map compatibility). Clearing a quest sends
+      AP checks when the matching `Unlock: <quest>` and — if weapons
+      are enabled — the wielded weapon's license are held. Goal =
+      clearing the 7* urgent "Serpent Goddess of Thunder". 
+    - `quest_rando_sunbreak`: each hub and master rank quest's boss monster
+      is randomly swapped (within per-map compatibility). Clearing a quest
+      sends AP checks when the matching `Unlock: <quest>` and — if weapons
+      are enabled — the wielded weapon's license are held. Goal =
+      clearing the MR6 urgent "Proof of Courage". This option requires 
+      Sunbreak, and will default to `quest_rando_hub` if sunbreak is disabled.
+    """
+    display_name = "Quest Pool"
+    option_quest_rando_village = 0
+    option_quest_rando_hub = 1
+    option_quest_rando_sunbreak = 2
+    default = 0
+
+class Questsanity(Toggle):
+    """
+    QuestRando Only: Include optional quests in the QuestRando pool.
+    This option will add 3 quests to Village QuestRando,
+    26 quests to Hub QuestRando, and 60 quests to Sunbreak QuestRando
+    """
+    display_name = "Questsanity"
 
 class IncludeSunbreak(DefaultOnToggle):
     """Include Sunbreak monsters (and their subspecies / Risen variants) in
@@ -87,15 +130,28 @@ class WeaponPool(OptionSet):
           - Bow
           - Switch Axe
 
-    Must contain at least one valid weapon name. Names are
-    case-sensitive and must match the entries in `data/weapons.py`.
-    No effect when `include_weapons` is disabled. Applies to both
-    modes."""
+    Must contain at least one valid weapon name. Invalid sets will default
+    to all weapons. Names are case-sensitive and must match the entries in
+    `data/weapons.py`. No effect when `include_weapons` is disabled.
+    Applies to both modes."""
 
     display_name = "Weapon Pool"
     valid_keys = _WEAPON_NAMES
     default = _WEAPON_NAMES
 
+class StartingWeapons(OptionSet):
+    """
+    Restrict which weapon types are eligible to be your starting weapon. One
+    of the weapons types in this pool will be precollected. Leave the 
+    option as "Random" to get any weapon from the weapon pool.
+
+    Must contain at least one valid weapon name or Random. Invalid sets will
+    default to random selection. Any names not in the weapon pool will be ignored.
+    No effect when `include_weapons` is disabled. Applies to both modes.
+    """
+    display_name = "Starting Weapons"
+    valid_keys = _WEAPON_NAMES.union(set(("Random",)))
+    default = set(("Random",))
 
 class RandomizeQuestMonsters(DefaultOnToggle):
     """QuestRando only: when enabled (default), every pool quest's
@@ -127,10 +183,13 @@ class Deathlink(Toggle):
 @dataclass
 class MHRiseOptions(PerGameCommonOptions):
     mode: Mode
+    quest_rando_pool: QuestRandoPool
+    questsanity: Questsanity
     include_sunbreak: IncludeSunbreak
     include_risen: IncludeRisen
     include_weapons: IncludeWeapons
     weapon_pool: WeaponPool
+    starting_weapons: StartingWeapons
     randomize_quest_monsters: RandomizeQuestMonsters
     monster_count: MonsterCount
     deathlink: Deathlink

@@ -19,8 +19,10 @@ from . import options as mhrise_options  # rename due to a name conflict with Wo
 from .data.monsters import MONSTERS, SUNBREAK_MONSTERS
 from .data.quests import QUESTS
 from .data.weapons import WEAPONS
-from .items import _in_questrando_pool, STARTER_QUEST_NO
-from .options import Mode
+from .items import _in_questrando_pool, _in_questrando_hub_pool, _in_questrando_mr_pool, \
+                    _in_questsanity_pool, _in_questsanity_hub_pool, _in_questsanity_mr_pool
+from .items import STARTER_QUEST_NO, TBA_QUEST_NUMBER, HUB_STARTER_QUEST_NO, SGOT_QUEST_NUMBER, POC_QUEST_NUMBER
+from .options import Mode, QuestRandoPool
 from .web_world import MHRiseWebWorld
 
 # Read world_version from the manifest via pkgutil so this works whether
@@ -53,6 +55,11 @@ class MHRiseWorld(World):
     item_name_to_id = items.ITEM_NAME_TO_ID
 
     origin_region_name = regions.ORIGIN_REGION_NAME
+
+    # Populated by regions.py. Stores the region names for the world's regions 
+    # in increasing order of quest level. Currently only has origin for huntathon
+    # and varies by quest pool type in questathon
+    region_names:list[Any] # This will have region names in increasing order of quest level
 
     # Populated by generate_early. The single monster whose license is
     # precollected at seed start, so the player has something huntable
@@ -104,10 +111,10 @@ class MHRiseWorld(World):
     quest_swaps: dict[int, int]
 
     def generate_early(self) -> None:
-        if self.options.mode.value == Mode.option_quest_rando:
-            self._generate_early_questrando()
-        else:
+        if self.options.mode.value == Mode.option_hunt_a_thon:
             self._generate_early_huntathon()
+        else:
+            self._generate_early_questrando()
 
     def _generate_early_huntathon(self) -> None:
         available = [m for m in MONSTERS if self._monster_allowed(m)]
@@ -154,13 +161,13 @@ class MHRiseWorld(World):
         rest = self.random.sample(rest_pool, n - 2)
         self.seed_monsters = [self.starting_monster, self.goal_monster] + rest
 
+        # Handle resolving weapons if weapons are randomized
         if bool(self.options.include_weapons.value):
+            # Get the allowed weapons in the weapon pool
             allowed_weapon_names = set(self.options.weapon_pool.value)
             if not allowed_weapon_names:
-                raise ValueError(
-                    "weapon_pool must contain at least one weapon name "
-                    "when include_weapons is enabled."
-                )
+                logging.warning("weapon_pool was empty, defaulting to all weapons")
+                allowed_weapon_names = {w["name"] for w in WEAPONS}
             self.weapon_pool = [
                 w for w in WEAPONS if w["name"] in allowed_weapon_names
             ]
@@ -168,15 +175,42 @@ class MHRiseWorld(World):
                 "weapon_pool resolved to empty after filtering — "
                 "OptionSet.valid_keys should have caught unknown names."
             )
-            self.starting_weapon = self.random.choice(self.weapon_pool)
+
+            # Determine a starting weapon from selected starting weapon pool
+            starting_weapon_names = set(self.options.starting_weapons.value)
+            if not starting_weapon_names or "Random" in starting_weapon_names:
+                self.starting_weapon = self.random.choice(self.weapon_pool)
+            else:
+                # Only allow weapons in weapon pool to be starter weapon
+                possible_starters = [w for w in WEAPONS if w["name"] in 
+                                     starting_weapon_names.intersection(allowed_weapon_names)]
+                if not possible_starters:
+                    self.starting_weapon = self.random.choice(self.weapon_pool)
+                else: 
+                    self.starting_weapon = self.random.choice(possible_starters)
+
+            # Display selected starting weapon during generation
+            logging.info(f"Starting weapon is {self.starting_weapon["name"]}")
+
 
     def _generate_early_questrando(self) -> None:
         """QuestRando mode.
 
-        Quest pool: village quests passing `_in_questrando_pool` —
+        Village Quest pool: village quests passing `_in_questrando_pool` —
         QL2 + QL3 + QL4 hunting quests plus the QL5 goal (Comeuppance).
         Training quests, rampage quests, and other QL5/QL6 entries are
         excluded. Goal is Comeuppance (QL5 Magnamalo), not swapped.
+
+        Hub Quest pool: hub quests passing `_in_questrando_hub_pool` —
+        QL1 - QL7 hunting quests plus the urgent rampage The Blue Apex.
+        Training quests, rampage quests that don't unlock a quest level,
+        and QL7EX quests are not included. Goal is Serpent Goddess of Thunder
+        (QL7 Narwa), not swapped.
+
+        Sunbreak Quest pool: hub quests passing `_in_questrando_hub_pool` —
+        QL1 - QL7 hunting quests plus the urgent rampage The Blue Apex. Also,
+        quests passing `_in_questrando_mr_pool` — M1* to M6* hunting quests, excluding
+        follower quests and support surveys. Goal is Proof of Courage (Gaismagorm)
 
         Swap pool (which monsters can replace a quest's boss): the
         per-host-quest set of monsters Capcom themselves placed as a
@@ -202,34 +236,110 @@ class MHRiseWorld(World):
         Weapon licenses honored when `IncludeWeapons` is on (mirrors
         HuntAThon), pool drawn from `WeaponPool`.
         """
-        village_with_monster = [q for q in QUESTS if _in_questrando_pool(q)]
-        if not village_with_monster:
-            raise ValueError(
-                "QuestRando quest pool is empty — quest catalog out of sync"
-            )
+        # If sunbreak is not enabled, ensure that the quest pool doesn't use sunbreak quests
+        if self.options.quest_rando_pool.value == QuestRandoPool.option_quest_rando_sunbreak \
+         and not bool(self.options.include_sunbreak):
+            self.options.quest_rando_pool.value = QuestRandoPool.option_quest_rando_hub
 
-        goal_quest = next(
-            (q for q in village_with_monster if q["quest_no"] == items.COMEUPPANCE_QUEST_NO),
-            None,
-        )
-        if goal_quest is None:
-            raise ValueError(
-                f"goal quest (quest_no={items.COMEUPPANCE_QUEST_NO}, Comeuppance) "
-                "not found in QuestRando pool — quest catalog out of sync"
+        # Set quest pool, goal, and starter quests for hub
+        if self.options.quest_rando_pool.value == QuestRandoPool.option_quest_rando_hub:
+            
+            hub_with_monster = ([q for q in QUESTS if _in_questrando_hub_pool(q)]
+                                if not bool(self.options.questsanity.value)
+                                else [q for q in QUESTS if _in_questsanity_hub_pool(q)])
+            if not hub_with_monster:
+                raise ValueError(
+                    "QuestRando quest pool is empty — quest catalog out of sync"
+                )
+
+            goal_quest = next(
+                (q for q in hub_with_monster if q["quest_no"] == items.SGOT_QUEST_NUMBER),
+                None,
             )
-        starter_quest = next(
-            (q for q in village_with_monster if q["quest_no"] == STARTER_QUEST_NO),
-            None,
-        )
-        if starter_quest is None:
-            raise ValueError(
-                f"starter quest (quest_no={STARTER_QUEST_NO}, Great Izuchi, "
-                "Great Pain) not found in QuestRando pool — quest catalog "
-                "out of sync"
+            if goal_quest is None:
+                raise ValueError(
+                    f"goal quest (quest_no={items.SGOT_QUEST_NUMBER}, Serpent Goddess of Thunder) "
+                    "not found in QuestRando pool — quest catalog out of sync"
+                )
+            starter_quest = next(
+                (q for q in hub_with_monster if q["quest_no"] == HUB_STARTER_QUEST_NO),
+                None,
             )
-        self.goal_quest = goal_quest
-        self.starting_quest = starter_quest
-        self.quest_pool = list(village_with_monster)
+            if starter_quest is None:
+                raise ValueError(
+                    f"starter quest (quest_no={HUB_STARTER_QUEST_NO}, Shady Monster) "
+                    "not found in QuestRando pool — quest catalog "
+                    "out of sync"
+                )
+            self.goal_quest = goal_quest
+            self.starting_quest = starter_quest
+            self.quest_pool = list(hub_with_monster)
+
+        # quest pool, goal, and starter quests for sunbreak
+        elif self.options.quest_rando_pool.value == QuestRandoPool.option_quest_rando_sunbreak: 
+            master_with_monster = ([q for q in QUESTS if _in_questrando_hub_pool(q) or _in_questrando_mr_pool(q)]
+                                   if not bool(self.options.questsanity.value)
+                                   else [q for q in QUESTS if _in_questsanity_hub_pool(q) or _in_questsanity_mr_pool(q)])
+            if not master_with_monster:
+                raise ValueError(
+                    "QuestRando quest pool is empty — quest catalog out of sync"
+                )
+        
+            goal_quest = next(
+                (q for q in master_with_monster if q["quest_no"] == items.POC_QUEST_NUMBER),
+                None,
+            )
+            if goal_quest is None:
+                raise ValueError(
+                    f"goal quest (quest_no={items.POC_QUEST_NUMBER}, Proof of Courage) "
+                    "not found in QuestRando pool — quest catalog out of sync"
+                )
+            starter_quest = next(
+                (q for q in master_with_monster if q["quest_no"] == HUB_STARTER_QUEST_NO),
+                None,
+            )
+            if starter_quest is None:
+                raise ValueError(
+                    f"starter quest (quest_no={HUB_STARTER_QUEST_NO}, Shady Monster) "
+                    "not found in QuestRando pool — quest catalog "
+                    "out of sync"
+                )
+            self.goal_quest = goal_quest
+            self.starting_quest = starter_quest
+            self.quest_pool = list(master_with_monster)
+
+        # Set quest pool, goal, and starter quests for village
+        else:
+            village_with_monster = ([q for q in QUESTS if _in_questrando_pool(q)]
+                                    if not bool(self.options.questsanity.value)
+                                    else [q for q in QUESTS if _in_questsanity_pool(q)])
+            if not village_with_monster:
+                raise ValueError(
+                    "QuestRando quest pool is empty — quest catalog out of sync"
+                )
+
+            goal_quest = next(
+                (q for q in village_with_monster if q["quest_no"] == items.COMEUPPANCE_QUEST_NO),
+                None,
+            )
+            if goal_quest is None:
+                raise ValueError(
+                    f"goal quest (quest_no={items.COMEUPPANCE_QUEST_NO}, Comeuppance) "
+                    "not found in QuestRando pool — quest catalog out of sync"
+                )
+            starter_quest = next(
+                (q for q in village_with_monster if q["quest_no"] == STARTER_QUEST_NO),
+                None,
+            )
+            if starter_quest is None:
+                raise ValueError(
+                    f"starter quest (quest_no={STARTER_QUEST_NO}, Great Izuchi, "
+                    "Great Pain) not found in QuestRando pool — quest catalog "
+                    "out of sync"
+                )
+            self.goal_quest = goal_quest
+            self.starting_quest = starter_quest
+            self.quest_pool = list(village_with_monster)
 
         # Per-map safe-swap pools: monsters Capcom placed as a boss
         # on each map in any vanilla quest. Built from the full
@@ -266,8 +376,8 @@ class MHRiseWorld(World):
         # deterministic given the seed.
         map_to_safe_ems = {mp: sorted(s) for mp, s in map_to_safe_ems.items()}
 
-        # Swap every quest in the pool, including the goal
-        # (Comeuppance). Training and rampage quests are already
+        # Swap every quest in the pool, including the goal.
+        # Training and rampage quests are already
         # filtered out of `quest_pool` by `_in_questrando_pool`. The
         # `randomize_quest_monsters` option short-circuits the loop
         # — quest unlocks / clear locations / rules still apply, but
@@ -278,6 +388,9 @@ class MHRiseWorld(World):
         self.quest_swaps = {}
         if bool(self.options.randomize_quest_monsters.value):
             for quest in self.quest_pool:
+                # Completely skip the blue apex when considering swaps
+                if quest["quest_no"] == TBA_QUEST_NUMBER:
+                    continue
                 candidates = map_to_safe_ems.get(quest["map_no"])
                 if not candidates:
                     # No safe target authored for this map under
@@ -291,12 +404,11 @@ class MHRiseWorld(World):
         # random WeaponPool subset, one precollected starter, the
         # rest dropped into the itempool by create_items.
         if bool(self.options.include_weapons.value):
+            # Get the allowed weapons in the weapon pool
             allowed_weapon_names = set(self.options.weapon_pool.value)
             if not allowed_weapon_names:
-                raise ValueError(
-                    "weapon_pool must contain at least one weapon name "
-                    "when include_weapons is enabled."
-                )
+                logging.warning("weapon_pool was empty, defaulting to all weapons")
+                allowed_weapon_names = {w["name"] for w in WEAPONS}
             self.weapon_pool = [
                 w for w in WEAPONS if w["name"] in allowed_weapon_names
             ]
@@ -304,7 +416,22 @@ class MHRiseWorld(World):
                 "weapon_pool resolved to empty after filtering — "
                 "OptionSet.valid_keys should have caught unknown names."
             )
-            self.starting_weapon = self.random.choice(self.weapon_pool)
+
+            # Determine a starting weapon from selected starting weapon pool
+            starting_weapon_names = set(self.options.starting_weapons.value)
+            if not starting_weapon_names or "Random" in starting_weapon_names:
+                self.starting_weapon = self.random.choice(self.weapon_pool)
+            else:
+                # Only allow weapons in weapon pool to be starter weapon
+                possible_starters = [w for w in WEAPONS if w["name"] in 
+                                     starting_weapon_names.intersection(allowed_weapon_names)]
+                if not possible_starters:
+                    self.starting_weapon = self.random.choice(self.weapon_pool)
+                else: 
+                    self.starting_weapon = self.random.choice(possible_starters)
+
+            # Display selected starting weapon during generation
+            logging.info(f"Starting weapon is {self.starting_weapon["name"]}")
 
     def create_regions(self) -> None:
         regions.create_and_connect_regions(self)
@@ -329,6 +456,7 @@ class MHRiseWorld(World):
             if self.options.mode.value == Mode.option_quest_rando
             else "hunt_a_thon"
         )
+        
         slot_data: dict[str, Any] = {
             "world_version": WORLD_VERSION,
             "mode": mode_str,

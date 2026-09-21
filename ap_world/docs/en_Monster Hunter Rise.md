@@ -36,7 +36,7 @@ dragon.
 > at the moment a quest is cleared, so a save that has already 
 > cleared quests will need to redo them.
 
-Every village quest in the pool has its **boss monster swapped** to a
+Every quest in the pool has its **boss monster swapped** to a
 random other monster (chosen at generation time, applied in-game when
 you connect). So you might fight a Magnamalo quest and a Rathalos shows up
 instead.
@@ -48,9 +48,9 @@ equipped weapon type). This is a **soft gate** like Hunt-A-Thon: the
 game's own progression decides which quests are visible and clearable;
 Archipelago only registers the checks once you hold the correct items.
 
-The **goal** is clearing the village urgent quest,
-**Comeuppance** (vanilla Magnamalo) — its boss is randomized too when
-quest-monster swapping is on.
+The **goal** is clearing a target urgent quest. The specific quest depends
+on which quest pool you select. The default village quest pool targets
+**Comeuppance** (vanilla Magnamalo), the hub quest pool targets **Serpent Goddess of Thunder**, (vanilla Narwa) and the sunbreak quest pool targets **Proof of Courage** (vanilla Gaismagorm).
 
 The `RandomizeQuestMonsters` option (default **on**) controls the swap.
 Turn it off and the quests keep their vanilla bosses — the mode reduces
@@ -108,7 +108,7 @@ tracker overlay.
   while holding the relevant licenses (the monster's
   license, plus the current weapon's license when `IncludeWeapons` is
   on).
-- **Quest Randomizer:** clearing a pool village quest
+- **Quest Randomizer:** clearing a pool quest
   while holding that quest's `Unlock:` item (plus the
   current weapon's license when `IncludeWeapons` is on). Each clear
   sends two checks.

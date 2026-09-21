@@ -115,6 +115,7 @@ Rise" YAML. The available options are:
 - `RandomizeQuestMonsters` (default on) — **`quest_rando` only.** When
   on, every pool quest's boss monster is randomly swapped. Turn it off
   to keep vanilla bosses and only gate the clear-checks.
+- `Deathlink` (default off) — whether or not the game should participate in  deathlink. This setting can be toggled in-game at any time.
 
 Drop the YAML into `<Archipelago install>/Players/`, run
 `ArchipelagoGenerate`, then host the resulting room (or upload the

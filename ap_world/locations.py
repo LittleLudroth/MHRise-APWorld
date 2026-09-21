@@ -38,10 +38,13 @@ from BaseClasses import Location, LocationProgressType
 
 from .items import (
     ALL_CURATED_MONSTERS,
-    QUESTRANDO_VILLAGE_QUESTS,
+    QUESTSANITY_VILLAGE_QUESTS,
+    QUESTSANITY_HUB_QUESTS,
+    QUESTSANITY_MR_QUESTS,
     quest_display_name,
 )
-from .options import Mode
+from .options import Mode, QuestRandoPool
+from .data.quests import QuestLevel, EnemyLv
 
 if TYPE_CHECKING:
     from .world import MHRiseWorld
@@ -51,6 +54,8 @@ LOCATION_ID_BASE = 0
 LOCATIONS_PER_MONSTER = 2
 LOCATIONS_PER_QUEST = 2
 QUEST_CLEAR_ID_BASE = 2000
+HUB_QUEST_CLEAR_ID_BASE = 3000
+MR_QUEST_CLEAR_ID_BASE = 4000
 
 LOCATION_NAME_TO_ID: dict[str, int] = {}
 
@@ -61,10 +66,26 @@ for _i, _monster in enumerate(ALL_CURATED_MONSTERS):
         assert _name not in LOCATION_NAME_TO_ID, f"duplicate location name {_name}"
         LOCATION_NAME_TO_ID[_name] = _id
 
-for _i, _quest in enumerate(QUESTRANDO_VILLAGE_QUESTS):
+for _i, _quest in enumerate(QUESTSANITY_VILLAGE_QUESTS):
     for _slot in range(LOCATIONS_PER_QUEST):
         _id = QUEST_CLEAR_ID_BASE + _i * LOCATIONS_PER_QUEST + _slot
         assert _id < 9000, "QuestRando village quest count overflowed reserved range"
+        _name = f"Clear: {quest_display_name(_quest)} ({_slot + 1}/{LOCATIONS_PER_QUEST})"
+        assert _name not in LOCATION_NAME_TO_ID, f"duplicate location name {_name}"
+        LOCATION_NAME_TO_ID[_name] = _id
+
+for _i, _quest in enumerate(QUESTSANITY_HUB_QUESTS):
+    for _slot in range(LOCATIONS_PER_QUEST):
+        _id = HUB_QUEST_CLEAR_ID_BASE + _i * LOCATIONS_PER_QUEST + _slot
+        assert _id < 9000, "QuestRando hub quest count overflowed reserved range"
+        _name = f"Clear: {quest_display_name(_quest)} ({_slot + 1}/{LOCATIONS_PER_QUEST})"
+        assert _name not in LOCATION_NAME_TO_ID, f"duplicate location name {_name}"
+        LOCATION_NAME_TO_ID[_name] = _id
+
+for _i, _quest in enumerate(QUESTSANITY_MR_QUESTS):
+    for _slot in range(LOCATIONS_PER_QUEST):
+        _id = MR_QUEST_CLEAR_ID_BASE + _i * LOCATIONS_PER_QUEST + _slot
+        assert _id < 9000, "QuestRando hub quest count overflowed reserved range"
         _name = f"Clear: {quest_display_name(_quest)} ({_slot + 1}/{LOCATIONS_PER_QUEST})"
         assert _name not in LOCATION_NAME_TO_ID, f"duplicate location name {_name}"
         LOCATION_NAME_TO_ID[_name] = _id
@@ -127,16 +148,76 @@ def _create_locations_huntathon(world: MHRiseWorld) -> None:
 
 def _create_locations_questrando(world: MHRiseWorld) -> None:
     """Add two Clear-locations per village quest in the active pool."""
-    from .regions import ORIGIN_REGION_NAME
 
-    origin = world.get_region(ORIGIN_REGION_NAME)
+    if world.options.quest_rando_pool.value == QuestRandoPool.option_quest_rando_village:
+        # Get the four village regions, map each quest level to its corresponding region
+        regions = [world.get_region(n) for n in world.region_names]
+        assert len(regions) == 4, "Invalid number of regions for Village Quests, should be impossible"
+        level_map:dict[QuestLevel, dict[str, int]] = {QuestLevel.QL2: {},
+                                                      QuestLevel.QL3: {},
+                                                      QuestLevel.QL4: {},
+                                                      QuestLevel.QL5: {}
+                                                     }
+        
+        for quest in world.quest_pool:
+            for name in quest_clear_location_names(quest):
+                level_map[quest["quest_level"]][name] = LOCATION_NAME_TO_ID[name]
 
-    location_map: dict[str, int] = {}
-    for quest in world.quest_pool:
-        for name in quest_clear_location_names(quest):
-            location_map[name] = LOCATION_NAME_TO_ID[name]
+        # as of python 3.7, dictionaries must preserve insertion order, so level map and regions
+        # are in corresponding order
+        for i, key in enumerate(level_map.keys()):
+            regions[i].add_locations(level_map[key], MHRiseLocation)
 
-    origin.add_locations(location_map, MHRiseLocation)
+    elif world.options.quest_rando_pool.value == QuestRandoPool.option_quest_rando_hub:
+        # Get the 7 hub regions, map each quest level to its corresponding region
+        regions = [world.get_region(n) for n in world.region_names]
+        assert len(regions) == 7, "Invalid number of regions for Hub Quests, should be impossible"
+        level_map:dict[QuestLevel, dict[str, int]] = {QuestLevel.QL1: {},
+                                                      QuestLevel.QL2: {},
+                                                      QuestLevel.QL3: {},
+                                                      QuestLevel.QL4: {},
+                                                      QuestLevel.QL5: {},
+                                                      QuestLevel.QL6: {},
+                                                      QuestLevel.QL7: {}
+                                                     }
+
+        for quest in world.quest_pool:
+            for name in quest_clear_location_names(quest):
+                level_map[quest["quest_level"]][name] = LOCATION_NAME_TO_ID[name]
+
+        # as of python 3.7, dictionaries must preserve insertion order, so level map and regions
+        # are in corresponding order
+        for i, key in enumerate(level_map.keys()):
+            regions[i].add_locations(level_map[key], MHRiseLocation)
+
+    else:
+        regions = [world.get_region(n) for n in world.region_names]
+        assert len(regions) == 13, "Invalid number of regions for MR Quests, should be impossible"
+        mr_level_map:dict[tuple[QuestLevel, EnemyLv], dict[str, int]] = \
+                                                     {(QuestLevel.QL1,EnemyLv.Low): {},
+                                                      (QuestLevel.QL2,EnemyLv.Low): {},
+                                                      (QuestLevel.QL3,EnemyLv.Low): {},
+                                                      (QuestLevel.QL4,EnemyLv.High): {},
+                                                      (QuestLevel.QL5,EnemyLv.High): {},
+                                                      (QuestLevel.QL6,EnemyLv.High): {},
+                                                      (QuestLevel.QL7,EnemyLv.High): {},
+                                                      (QuestLevel.QL1,EnemyLv.Master): {},
+                                                      (QuestLevel.QL2,EnemyLv.Master): {},
+                                                      (QuestLevel.QL3,EnemyLv.Master): {},
+                                                      (QuestLevel.QL4,EnemyLv.Master): {},
+                                                      (QuestLevel.QL5,EnemyLv.Master): {},
+                                                      (QuestLevel.QL6,EnemyLv.Master): {},
+                                                     }
+
+        for quest in world.quest_pool:
+            for name in quest_clear_location_names(quest):
+                mr_level_map[(quest["quest_level"],quest["enemy_level"])][name] = LOCATION_NAME_TO_ID[name]
+
+        # as of python 3.7, dictionaries must preserve insertion order, so level map and regions
+        # are in corresponding order
+        for i, key in enumerate(mr_level_map.keys()):
+            regions[i].add_locations(mr_level_map[key], MHRiseLocation)
+    
 
     # Both goal quest clear locations are EXCLUDED so AP fill doesn't
     # strand progression items at the run-ending clear. (2/2) is locked

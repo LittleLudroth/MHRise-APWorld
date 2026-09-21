@@ -37,7 +37,7 @@ Lookups.goal_quest = nil     -- int (quest_no)
 Lookups.starting_quest = nil -- int (quest_no)
 
 -- Deathlink flag
--- Used to determine whether or not the client should send or react to deathlink
+-- Used to determine whether or not the client should initially send or react to deathlinks
 Lookups.death_link = false -- bool
 
 function Lookups.Reset()

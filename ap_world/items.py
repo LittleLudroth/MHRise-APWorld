@@ -22,6 +22,12 @@ ID layout:
        position. Items and locations live in separate AP namespaces, so
        the 2000+ id space is shared between this and the Clear locations
        in locations.py — no collision.
+- 3000..3999: QuestRando `Unlock: <quest>` items for hub quests, one per
+        entry in the filtered hub pool (`QUESTRANDO_HUB_QUESTS`), indexed
+        by position. 
+- 4000..4999: QuestRando `Unlock: <quest>` items for master rank quests, one per
+        entry in the filtered mr hub pool (`QUESTRANDO_MR_QUESTS`), indexed
+        by position. 
 - 9001: Victory (delivered when the goal monster is hunted in HuntAThon
        or when Comeuppance clears in QuestRando).
 - 9100..9113: weapon license items (14 contiguous, indexed by WEAPONS
@@ -43,7 +49,8 @@ from BaseClasses import Item, ItemClassification
 from .data.monsters import MONSTERS, APEX_MONSTERS, SMALL_MONSTERS
 from .data.quests import QUESTS, EnemyLv, QuestLevel, QuestType
 from .data.weapons import WEAPONS
-from .options import Mode
+from .data.quest_categories import OPTIONAL_QUESTS, BANNED_QUESTS
+from .options import Mode, QuestRandoPool
 
 if TYPE_CHECKING:
     from .world import MHRiseWorld
@@ -54,26 +61,39 @@ if TYPE_CHECKING:
 # datapackage for existing seeds.
 ALL_CURATED_MONSTERS: tuple[dict, ...] = MONSTERS + APEX_MONSTERS + SMALL_MONSTERS
 
-# quest_no for the goal quest ("Comeuppance"). Confirmed against the
+# quest_no for the village goal quest ("Comeuppance"). Confirmed against the
 # vanilla catalog; intentionally hardcoded by quest_no rather than
 # looked up by name because the `name` field is locale-dependent.
 COMEUPPANCE_QUEST_NO = 501
+
+# quest_no for the hub goal quest ("Serpent Goddess of Thunder").
+# Confirmed against the vanilla catalog; intentionally hardcoded
+# by quest_no rather than looked up by name because the `name`
+# field is locale-dependent.
+SGOT_QUEST_NUMBER = 10702
+
+# quest_no for the MR goal quest ("Proof of Courage"). Confirmed against the
+# vanilla catalog; intentionally hardcoded by quest_no rather than
+# looked up by name because the `name` field is locale-dependent.
+POC_QUEST_NUMBER = 405600
+
+# quest_no for the only required rampage quest in progression (The Blue Apex)
+# Confirmed against the vanilla catalog; intentionally hardcoded by quest_no
+# rather than looked up by name because the `name` field is locale-dependent.
+TBA_QUEST_NUMBER = 10403
 
 # quest_no for the starter village quest, precollected so the player can
 # do at least one hunt from t=0. QL1 is all training (excluded), so the
 # starter is the first real QL2 hunt: Great Izuchi, Great Pain.
 STARTER_QUEST_NO = 202
 
-# Per-tier urgent quest_nos. Clearing a QLn quest requires holding the
-# `Unlock:` items for that quest AND the prior tier's urgent unlock.
-# Models the engine's "clear urgent to advance the tier" gate with
-# minimum AP fill pressure (each tier has just one progression-blocking
-# unlock in the rule graph rather than the whole tier).
-#
-# Non-urgent unlocks in earlier tiers may end up placed at later-tier
-# locations the player can't reach until they collect the chain of
-# urgents — that's fine; those non-urgents trickle in alongside the
-# urgent chain rather than being required for early sphere progression.
+# quest_no for the starter hub quest, precollected so the player can
+# do at least one hunt from t=0. the starter is the first real QL1 hunt: Shady Monster.
+HUB_STARTER_QUEST_NO = 10104
+
+# Per-tier urgent quest_nos for MR. The in game unlock requirements 
+# for these urgent quests are used as entrance requirements 
+# for the region corresponding to that quest level
 #
 # QL2 has no prior urgent (its "urgent" is the precollected starter at
 # quest_no=202). QL6 is excluded from the pool entirely (only the goal
@@ -84,6 +104,46 @@ TIER_URGENT_QUEST_NOS: dict[QuestLevel, int] = {
     QuestLevel.QL5: 501,  # Comeuppance (Magnamalo) — also the goal
 }
 
+# Per-tier urgent quest_nos for MR. The in game unlock requirements 
+# for these urgent quests are used as entrance requirements 
+# for the region corresponding to that quest level
+#
+# QL1 has no prior urgent
+# QL7EX is excluded from the pool, as the goal quest is also the unlock
+HUB_TIER_URGENT_QUEST_NOS: dict[QuestLevel, int] = {
+    QuestLevel.QL2: 10203,  # Dead Ringer (Tetranadon)
+    QuestLevel.QL3: 10302,  # Hellfire (Magnamalo)
+    QuestLevel.QL4: 10403,  # The Blue Apex (Apex Arzuros)
+    QuestLevel.QL5: 10503,  # The Restless Swamp (Jyuratodus)
+    QuestLevel.QL6: 10602,  # A Bewitching Dance (Mizutsune)
+    QuestLevel.QL7: 10701,  # Can't Kill It with Fire
+    QuestLevel.QL7EX: 10702,  # Serpent Goddess of Thunder (Narwa) - also the hub goal
+}
+
+# Per-tier urgent quest_nos for MR. The in game unlock requirements 
+# for these urgent quests are used as entrance requirements 
+# for the region corresponding to that quest level
+MR_TIER_URGENT_QUEST_NOS: dict[QuestLevel, int] = {
+    QuestLevel.QL1: 315100,  # Uninvited Guest (Damiyo Hermitaur)
+    QuestLevel.QL2: 405200,  # Scarlet Tengu in the Shrine Ruins (Blood Orange Bishaten)
+    QuestLevel.QL3: 405300,  # A Rocky Rampage (Garangolm)
+    QuestLevel.QL4: 405400,  # Ice Wolf, Red Moon (Lunagaron)
+    QuestLevel.QL5: 405500,  # Witness by Moonlight (Malzeno)
+    QuestLevel.QL6: 405600,  # Proof of Courage (Gaismagorm) - also the MR goal
+}
+
+# Mid-Urgent quests that don't unlock a new tier of quests (in logic).
+# This set is used in rules.py to determine which key quests
+# have unlock requirements beyond access to the region
+MID_URGENT_QUEST_NOS: frozenset[int] = frozenset([
+    10702,  # Serpent Goddess of Thunder (Narwa)
+    315190, # Tetranadon Blockade (Tetranadon)
+    315290, # Provoking an Anjanath's Wrath (Anjanath)
+    315390, # Keep it Busy (Aurora Somnacanth)
+    315490, # In Search of the Doctor (Astalos)
+    315491, # A Slumbering Jungle Espinas (Espinas)
+    315590, # Dark Citadel, White Wheel (Shagaru Magala)
+])
 
 _HUNTING_QUEST_TYPES = QuestType.HUNTING | QuestType.KILL | QuestType.CAPTURE
 
@@ -97,7 +157,7 @@ _HUNTING_QUEST_TYPES = QuestType.HUNTING | QuestType.KILL | QuestType.CAPTURE
 _LARGE_MONSTER_EM_TYPES: frozenset[int] = frozenset(m["em_type"] for m in MONSTERS)
 
 
-def _in_questrando_pool(quest: dict) -> bool:
+def _in_questsanity_pool(quest: dict) -> bool:
     """Filter used identically by items, locations, and generate_early
     so static IDs stay aligned with the dynamic seed's quest_pool.
 
@@ -109,6 +169,8 @@ def _in_questrando_pool(quest: dict) -> bool:
     (quest_no=501). Quests whose boss OR clear-target is a small
     monster are excluded (gh #19) — swapping their boss makes them
     uncompletable."""
+    if quest["quest_no"] in BANNED_QUESTS:
+        return False
     if quest["enemy_level"] != EnemyLv.Village:
         return False
     if quest["monster_bucket"] != "monster":
@@ -126,22 +188,143 @@ def _in_questrando_pool(quest: dict) -> bool:
         return quest["quest_no"] == COMEUPPANCE_QUEST_NO
     return True
 
+def _in_questrando_pool(quest: dict) -> bool:
+    """
+    Filter used identically by items, locations, and generate_early
+    so static IDs stay aligned with the dynamic seed's quest_pool.
 
-# Village quests included in the QuestRando pool. Stable declaration
-# order is what locations.py and the static unlock-item ID assignment
-# both depend on; keep this filter and `_in_questrando_pool` aligned.
-QUESTRANDO_VILLAGE_QUESTS: tuple[dict, ...] = tuple(
-    q for q in QUESTS if _in_questrando_pool(q)
+    Same as _in_questsanity_pool but also excludes optional quests
+    """
+    if quest["quest_no"] in OPTIONAL_QUESTS:
+        return False
+    else:
+        return _in_questsanity_pool(quest)
+
+def _in_questsanity_hub_pool(quest: dict) -> bool:
+    """
+    Filter used identically by items, locations, and generate_early
+    so static IDs stay aligned with the dynamic seed's quest_pool.
+
+    Pool: every low/high rank hub quest with a real boss-monster bucket, whose
+    quest_type is one of HUNTING / KILL / CAPTURE (so gather quests
+    like 'Plump and Juicy' and arena chains like 'Third Wheel' are
+    excluded — clearing those doesn't reduce to 'kill the swapped
+    boss'), with the goal being Serpent Goddess of Thunder (quest_no=10702).
+    Rampage quests are also excluded, with necessary progression rampages being 
+    added manually. Quests in QL7EX are excluded, since they are gated by hunter
+    rank grinding. A Quests whose boss OR clear-target is a small monster are
+    excluded (gh #19), as swapping their boss makes them uncompletable.
+    """
+    if quest["quest_no"] in BANNED_QUESTS:
+        return False
+    if quest["quest_no"] in OPTIONAL_QUESTS:
+        return False
+    if quest["quest_no"] == TBA_QUEST_NUMBER:
+        return True # This sucks, but TBA specifically needs to be except
+    if quest["enemy_level"] != EnemyLv.Low and quest["enemy_level"] != EnemyLv.High:
+        return False
+    if quest["monster_bucket"] != "monster":
+        return False
+    # Both the spawned boss AND the clear-target must be large monsters.
+    # Some hub "hunt" quests clear on a small monster (gh #19) — the
+    # boss swap would make them uncompletable, so exclude them.
+    if quest["boss_em_type"] not in _LARGE_MONSTER_EM_TYPES:
+        return False
+    if quest["target_em_type"] not in _LARGE_MONSTER_EM_TYPES:
+        return False
+    if not (quest["quest_type"] & _HUNTING_QUEST_TYPES):
+        return False
+    if quest["quest_level"] == QuestLevel.QL7EX:
+        return False
+    return True
+
+def _in_questrando_hub_pool(quest: dict) -> bool:
+    """
+    Filter used identically by items, locations, and generate_early
+    so static IDs stay aligned with the dynamic seed's quest_pool.
+
+    Same as _in_questsanity_hub_pool but also excludes optional quests
+    """
+    if quest["quest_no"] in OPTIONAL_QUESTS:
+        return False
+    else:
+        return _in_questsanity_hub_pool(quest)
+
+def _in_questsanity_mr_pool(quest: dict) -> bool:
+    """
+    Filter used identically by items, locations, and generate_early
+    so static IDs stay aligned with the dynamic seed's quest_pool.
+
+    Pool: every master rank hub quest with a real boss-monster bucket,
+    whose quest_type is one of HUNTING / KILL / CAPTURE (so gather quests
+    like 'Plump and Juicy' and arena chains like 'Third Wheel' are
+    excluded — clearing those doesn't reduce to 'kill the swapped
+    boss'), with the goal being Proof of Courage (quest_no=405600). 
+    Quests in QL7EX are excluded, since they are gated by hunter rank grinding.
+    Quests in MR6 other than Proof of Courage are excluded, since they are blocked
+    behind the goal quest. A Quests whose boss OR clear-target is a small monster
+    are excluded (gh #19), as swapping their boss makes them uncompletable.
+    """
+    if quest["quest_no"] in BANNED_QUESTS:
+        return False
+    if quest["quest_no"] in OPTIONAL_QUESTS:
+        return False
+    if quest["enemy_level"] != EnemyLv.Master:
+        return False
+    if quest["monster_bucket"] != "monster":
+        return False
+    # Both the spawned boss AND the clear-target must be large monsters.
+    # Some hub "hunt" quests clear on a small monster (gh #19) — the
+    # boss swap would make them uncompletable, so exclude them.
+    if quest["boss_em_type"] not in _LARGE_MONSTER_EM_TYPES:
+        return False
+    if quest["target_em_type"] not in _LARGE_MONSTER_EM_TYPES:
+        return False
+    if not (quest["quest_type"] & _HUNTING_QUEST_TYPES):
+        return False
+    if quest["quest_level"] == QuestLevel.QL7EX:
+        return False
+    if quest["quest_level"] == QuestLevel.QL6 and quest["enemy_level"] == EnemyLv.Master:
+        return quest["quest_no"] == POC_QUEST_NUMBER
+    return True
+
+def _in_questrando_mr_pool(quest: dict) -> bool:
+    """
+    Filter used identically by items, locations, and generate_early
+    so static IDs stay aligned with the dynamic seed's quest_pool.
+
+    Same as _in_questsanity_mr_pool but also excludes optional quests
+    """
+    if quest["quest_no"] in OPTIONAL_QUESTS:
+        return False
+    else:
+        return _in_questsanity_mr_pool(quest)
+
+# Quests included in the Village Questsanity pool
+QUESTSANITY_VILLAGE_QUESTS: tuple[dict, ...] = tuple(
+    q for q in QUESTS if _in_questsanity_pool(q)
+)
+
+# Quests included in the Hub Questsanity pool
+QUESTSANITY_HUB_QUESTS: tuple[dict, ...] = tuple(
+    q for q in QUESTS if _in_questsanity_hub_pool(q)
+)
+
+# Quests included in the Sunbreak Questsanity pool
+QUESTSANITY_MR_QUESTS: tuple[dict, ...] = tuple(
+    q for q in QUESTS if _in_questsanity_mr_pool(q)
 )
 
 # Legacy alias retained for any external consumer; safe to remove once
 # nothing imports it directly. Currently used by locations.py.
-VILLAGE_QUESTS: tuple[dict, ...] = QUESTRANDO_VILLAGE_QUESTS
+VILLAGE_QUESTS: tuple[dict, ...] = QUESTSANITY_VILLAGE_QUESTS
 
 FILLER_ITEM_NAME = "Poogie"
 
 WEAPON_LICENSE_ID_BASE = 9100
 QUEST_UNLOCK_ID_BASE = 2000
+HUB_QUEST_UNLOCK_ID_BASE = 3000
+MR_QUEST_UNLOCK_ID_BASE = 4000
 
 
 def quest_display_name(quest: dict) -> str:
@@ -165,12 +348,28 @@ for _i, _monster in enumerate(ALL_CURATED_MONSTERS):
     assert _name not in ITEM_NAME_TO_ID, f"duplicate license name {_name}"
     ITEM_NAME_TO_ID[_name] = _id
 
-for _i, _quest in enumerate(QUESTRANDO_VILLAGE_QUESTS):
+for _i, _quest in enumerate(QUESTSANITY_VILLAGE_QUESTS):
     _id = QUEST_UNLOCK_ID_BASE + _i
     assert _id < 9000, "QuestRando village quest count overflowed reserved range"
     _name = unlock_item_name(_quest)
     assert _name not in ITEM_NAME_TO_ID, f"duplicate unlock item name {_name}"
     ITEM_NAME_TO_ID[_name] = _id
+
+for _i, _quest in enumerate(QUESTSANITY_HUB_QUESTS):
+    _id = HUB_QUEST_UNLOCK_ID_BASE + _i
+    assert _id < 9000, "QuestRando hub quest count overflowed reserved range"
+    _name = unlock_item_name(_quest)
+    assert _name not in ITEM_NAME_TO_ID, f"duplicate unlock item name {_name}"
+    ITEM_NAME_TO_ID[_name] = _id
+
+for _i, _quest in enumerate(QUESTSANITY_MR_QUESTS):
+    _id = MR_QUEST_UNLOCK_ID_BASE + _i
+    assert _id < 9000, "QuestRando MR quest count overflowed reserved range"
+    _name = unlock_item_name(_quest)
+    assert _name not in ITEM_NAME_TO_ID, f"duplicate unlock item name {_name}"
+    ITEM_NAME_TO_ID[_name] = _id
+
+
 
 ITEM_NAME_TO_ID["Victory"] = 9001
 ITEM_NAME_TO_ID[FILLER_ITEM_NAME] = 9999
@@ -184,7 +383,7 @@ for _i, _weapon in enumerate(WEAPONS):
 # Precomputed lookup: quest unlock item name -> quest dict. Used by
 # classification to tag the goal-quest unlock with skip-balancing.
 _UNLOCK_NAME_TO_QUEST: dict[str, dict] = {
-    unlock_item_name(q): q for q in QUESTRANDO_VILLAGE_QUESTS
+    unlock_item_name(q): q for q in QUESTSANITY_VILLAGE_QUESTS + QUESTSANITY_HUB_QUESTS + QUESTSANITY_MR_QUESTS
 }
 
 
@@ -279,7 +478,10 @@ def place_victory(world: MHRiseWorld) -> None:
 def create_all_items(world: MHRiseWorld) -> None:
     """Dispatch on mode."""
     if world.options.mode.value == Mode.option_quest_rando:
-        _create_items_questrando(world)
+        if world.options.quest_rando_pool.value == QuestRandoPool.option_quest_rando_village:
+            _create_items_questrando(world)
+        else:
+            _create_items_questrando_hub(world) # hub and mr questrando share the same starting quests
     else:
         _create_items_huntathon(world)
 
@@ -427,6 +629,109 @@ def _create_items_questrando(world: MHRiseWorld) -> None:
             quest["quest_level"] == QuestLevel.QL2
             and quest_display_name(quest) != starter_quest_name
             and quest_display_name(quest) not in extra_ql2_names
+        ):
+            item_name = unlock_item_name(quest)
+            world.multiworld.local_early_items[world.player][item_name] = (
+                world.multiworld.local_early_items[world.player].get(item_name, 0) + 1
+            )
+
+    # Spare slots = unfilled (excludes the Victory-locked goal slot)
+    # minus the unlock items we just placed. Reserve ≥1 for Poogie so
+    # the EXCLUDED goal Clear (1/2) can be filled — weapon licenses are
+    # `useful` and don't satisfy excluded-fill.
+    unfilled = len(world.multiworld.get_unfilled_locations(world.player))
+    spare = unfilled - len(itempool)
+    assert spare >= 1, "spare-slot invariant broken (need ≥1 slot beyond unlocks)"
+
+    if bool(world.options.include_weapons.value):
+        starting_weapon_name = world.starting_weapon["name"]
+        precollected.append(create_item_with_correct_classification(
+            world, weapon_license_item_name(world.starting_weapon)))
+        non_starter_weapons = [
+            w for w in world.weapon_pool if w["name"] != starting_weapon_name
+        ]
+        world.random.shuffle(non_starter_weapons)
+        weapon_budget = max(spare - 1, 0)
+        weapons_to_add = non_starter_weapons[:weapon_budget]
+        for weapon in weapons_to_add:
+            itempool.append(create_item_with_correct_classification(
+                world, weapon_license_item_name(weapon)))
+        spare -= len(weapons_to_add)
+
+    for _ in range(spare):
+        itempool.append(create_item_with_correct_classification(world, FILLER_ITEM_NAME))
+
+    world.multiworld.itempool += itempool
+    for item in precollected:
+        world.push_precollected(item)
+
+def _create_items_questrando_hub(world: MHRiseWorld) -> None:
+    """Build the QuestRando hub item pool.
+
+    Topology for V = len(world.quest_pool) hub quests:
+    - 2V `Clear: <name> (n/2)` locations (mirrors HuntAThon's two-slot
+      pattern; both fire on the same in-game clear event).
+    - place_victory locks Victory at goal Clear (2/2) → 2V-1 unfilled
+      locations to fill.
+    - V `Unlock: <name>` items, one per quest. Starter (Shady Monster no 10104)
+      is precollected; goal unlock is also placed but treated as
+      skip-balancing.
+    - Spare slots = (2V-1) - (V-1) = V slots beyond the quest unlocks.
+      Filled in priority order:
+        1. Starter weapon license (precollected) if weapons enabled.
+        2. Up to (spare-1) random non-starter weapon licenses, capped
+           at 13. The (spare-1) cap reserves at least one Poogie slot
+           for AP's excluded-location fill (goal Clear (1/2) is
+           EXCLUDED — weapon licenses are `useful`, not filler, so
+           excluded fill rejects them).
+        3. Poogie filler for leftover slots.
+    """
+    place_victory(world)
+
+    starter_quest_name = quest_display_name(world.starting_quest)
+
+    # Precollect the starter (Shady Monster no 10104) PLUS 3 random other QL1 unlocks.
+    # The QuestRando rule chain
+    # makes only QL1 quests sphere-0 reachable, but with just 1
+    # precollected unlock only 2 locations are reachable — too few to
+    # host the remaining 5 QL1 unlocks. Precollecting 4 (starter + 3)
+    # opens 8 sphere-0 reachable Clear locations, giving fill room
+    # for the remaining QL1 unlocks plus an early QL2 unlock or two.
+    from .data.quests import QuestLevel, EnemyLv
+    non_starter_ql1: list[dict] = [
+        q for q in world.quest_pool
+        if q["quest_level"] == QuestLevel.QL1
+        and quest_display_name(q) != starter_quest_name
+        and q["enemy_level"] == EnemyLv.Low
+    ]
+    extra_ql1_count = min(3, len(non_starter_ql1))
+    extra_ql1_starters = world.random.sample(non_starter_ql1, extra_ql1_count)
+    extra_ql1_names = {quest_display_name(q) for q in extra_ql1_starters}
+
+    itempool: list[Item] = []
+    precollected: list[MHRiseItem] = []
+
+    for quest in world.quest_pool:
+        item_name = unlock_item_name(quest)
+        item = create_item_with_correct_classification(world, item_name)
+        name = quest_display_name(quest)
+        if name == starter_quest_name or name in extra_ql1_names:
+            precollected.append(item)
+        else:
+            itempool.append(item)
+
+    # Mark the remaining (non-precollected) QL1 unlocks as
+    # local_early so AP's distribute_early_items pass tries to
+    # place them in this world's earliest reachable Clear
+    # locations before the main fill loop. Without this hint, fill
+    # may put QL2+ unlocks at the precollected sphere-0 locations
+    # and leave no room for the rest of QL1.
+    for quest in world.quest_pool:
+        if (
+            quest["quest_level"] == QuestLevel.QL1
+            and quest_display_name(quest) != starter_quest_name
+            and quest_display_name(quest) not in extra_ql1_names
+            and quest["enemy_level"] == EnemyLv.Low
         ):
             item_name = unlock_item_name(quest)
             world.multiworld.local_early_items[world.player][item_name] = (

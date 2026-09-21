@@ -22,75 +22,38 @@ multiworld.
 from __future__ import annotations
 
 from collections import defaultdict
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
-from rule_builder.rules import Has, HasAll
+from rule_builder.rules import Has, HasAll, HasFromList, True_, And
 
 from .data.quests import QuestLevel
+from .data.quest_categories import URGENT_QUEST_DATA, OPTIONAL_QUESTS
 from .items import (
     TIER_URGENT_QUEST_NOS,
+    HUB_TIER_URGENT_QUEST_NOS,
+    MR_TIER_URGENT_QUEST_NOS,
+    MID_URGENT_QUEST_NOS,
     license_item_name,
     unlock_item_name,
 )
 from .locations import hunt_location_names, quest_clear_location_names
-from .options import Mode
+from .options import Mode, QuestRandoPool
 
 if TYPE_CHECKING:
     from .world import MHRiseWorld
 
 
-# Each tier's urgent additionally requires every Unlock: in the
-# prior tier (over-approximating the engine's "clear N key quests"
-# with "clear all prior tier"). Maps urgent's QL -> prior QL.
-_PRIOR_TIER_FOR_URGENT: dict[QuestLevel, QuestLevel] = {
-    QuestLevel.QL3: QuestLevel.QL2,
-    QuestLevel.QL4: QuestLevel.QL3,
-    QuestLevel.QL5: QuestLevel.QL4,
-}
-
-
-def quest_prerequisite_unlock_names(quest_pool: list[dict]) -> dict[int, list[str]]:
-    """quest_no -> sorted prerequisite Unlock item names: everything the
-    quest's Clear rule requires EXCEPT its own unlock. Mirrors the rule
-    shape in _set_rules_questrando so the tracker can model engine-tier
-    accessibility client-side. QL2 (and any no-urgent tier) -> []."""
-    quest_by_no = {q["quest_no"]: q for q in quest_pool}
-    by_tier: dict[QuestLevel, list[dict]] = defaultdict(list)
-    for q in quest_pool:
-        by_tier[q["quest_level"]].append(q)
-
-    # For each urgent tier, build the sorted list of prior-tier unlock names.
-    urgent_prereqs_by_tier: dict[QuestLevel, list[str]] = {}
-    for tier in TIER_URGENT_QUEST_NOS:
-        prior_tier = _PRIOR_TIER_FOR_URGENT.get(tier)
-        if prior_tier is not None:
-            prior_names = sorted(
-                unlock_item_name(q) for q in by_tier.get(prior_tier, [])
-            )
-        else:
-            prior_names = []
-        urgent_prereqs_by_tier[tier] = prior_names
-
-    urgent_quest_nos = set(TIER_URGENT_QUEST_NOS.values())
-    result: dict[int, list[str]] = {}
-    for quest in quest_pool:
-        qn = quest["quest_no"]
-        tier = quest["quest_level"]
-        if qn in urgent_quest_nos:
-            prereqs = urgent_prereqs_by_tier.get(tier, [])
-        elif tier in TIER_URGENT_QUEST_NOS:
-            urgent_qn = TIER_URGENT_QUEST_NOS[tier]
-            urgent_quest = quest_by_no.get(urgent_qn)
-            if urgent_quest is not None:
-                own_urgent = unlock_item_name(urgent_quest)
-                prereqs = sorted(set([own_urgent] + urgent_prereqs_by_tier.get(tier, [])))
-            else:
-                prereqs = []
-        else:
-            prereqs = []
-        result[qn] = prereqs
-    return result
-
+# A dictionary mapping all of the key quests to the urgent quest that unlocks them
+# quests that map to None are key quests that are available from the start
+_KEY_QUEST_TO_URGENT:dict[int, Any] = {}
+for quest in URGENT_QUEST_DATA:
+    for key in URGENT_QUEST_DATA[quest]["unlocked_quests"]:
+        if key in OPTIONAL_QUESTS:
+            continue
+        _KEY_QUEST_TO_URGENT[key] = quest
+    for key in URGENT_QUEST_DATA[quest]["key_list"]:
+        if key not in _KEY_QUEST_TO_URGENT:
+            _KEY_QUEST_TO_URGENT[key] = None
 
 def set_all_rules(world: MHRiseWorld) -> None:
     if world.options.mode.value == Mode.option_hunt_a_thon:
@@ -108,36 +71,110 @@ def _set_rules_huntathon(world: MHRiseWorld) -> None:
 
 
 def _set_rules_questrando(world: MHRiseWorld) -> None:
-    """Build per-quest Clear rules.
-
-    Two rule shapes:
-    - Tier-urgent quest U (the lowest-quest_no quest at QLn, the
-      engine's tier-key gate): `Has(Unlock: U) AND HasAll(every
-      Unlock: in prior tier)`. Over-approximates the engine's
-      "clear N specific keys then U becomes available" gate by
-      requiring the entire prior tier.
-    - Non-urgent quest X at QLn: the tier urgent's full rule plus
-      X's own unlock. That is, X reachable iff the tier urgent
-      is reachable AND the player holds Unlock: X. This ensures
-      AP fill never grants a player-receivable check (e.g.,
-      placing Unlock: Y at Clear: X) until Y is actually
-      sphere-clearable in-game — clearing X requires both X's
-      unlock AND the engine's tier gate (urgent unlocked) AND
-      the prior tier's full clear set.
-
-    QL2 has no urgent / no prior-tier requirement: clearing any
-    QL2 quest just requires its own unlock. The precollected
-    starter (qn=202) seeds sphere 0.
     """
-    prereqs_by_no = quest_prerequisite_unlock_names(world.quest_pool)
+    Handle quests by quest type using info in quest_catergories
 
-    for quest in world.quest_pool:
-        own = Has(unlock_item_name(quest))
-        prereq_names = prereqs_by_no.get(quest["quest_no"], [])
-        rule = own & HasAll(*prereq_names) if prereq_names else own
-        for loc_name in quest_clear_location_names(quest):
-            world.set_rule(world.get_location(loc_name), rule)
+    Rule shapes:
+    -Urgent Quests require a number of key quest unlocks equal to the 
+     number of key quests needed to unlock the quest in the base game. These
+     key quests are pulled from the list of valid keys for that quest. In addition,
+     Urgent quests require heir own unlock item.
+     Some urgent quests (mid urgents) may have additional urgents preceeding them.
+     These urgents will have the rule for preceeding urgents added to their own rule.
+    -Key quests require their own unlock item. If the key quest is unlocked by a mid
+     urgent, the key quest also requires that mid urgent's rule 
+    -Optional require their own item
 
+    All quests are regions split by quest level, so the rule for the urgent that unlocks
+    each tier is applied to the entrance for that region. As such, the locations for that urgent
+    don't need any additional rules.
+    """
+    from .regions import VILLAGE_ENTRANCES, HUB_ENTRANCES, MASTER_ENTRANCES
+    quest_id_to_quest:dict[int, dict] = {quest["quest_no"]:quest for quest in world.quest_pool}
+    urgent_rules_by_id = set_urgent_rules(quest_id_to_quest)
+
+    if world.options.quest_rando_pool.value == QuestRandoPool.option_quest_rando_village:
+        # The origin region is always unlocked, so don't need a rule for that
+        # The other two regions are gated by their respective urgent quests
+        # Set the entrance rule to the urgent quest requirements
+        unlock_v3 = world.get_entrance(VILLAGE_ENTRANCES[0])
+        unlock_v4 = world.get_entrance(VILLAGE_ENTRANCES[1])
+        unlock_v5 = world.get_entrance(VILLAGE_ENTRANCES[2])
+
+        # set the rule to reach 3, 4, and 5 star quests equal to the requirements
+        # for the urgent quests that unlock that tier
+        world.set_rule(unlock_v3, urgent_rules_by_id[TIER_URGENT_QUEST_NOS[QuestLevel.QL3]])
+        world.set_rule(unlock_v4, urgent_rules_by_id[TIER_URGENT_QUEST_NOS[QuestLevel.QL4]])
+        world.set_rule(unlock_v5, urgent_rules_by_id[TIER_URGENT_QUEST_NOS[QuestLevel.QL5]])
+
+        # for quests not in urgent_rules, set their rule to require their own item
+        for quest in world.quest_pool:
+            if quest["quest_no"] in urgent_rules_by_id:
+                continue
+            for loc_name in quest_clear_location_names(quest):
+                world.set_rule(world.get_location(loc_name),Has(unlock_item_name(quest)))
+
+    else:
+        # The rules for hub quests are the same in hub and sunbreak modes
+        # get the various hub entrances from world
+        unlock_h2 = world.get_entrance(HUB_ENTRANCES[0])
+        unlock_h3 = world.get_entrance(HUB_ENTRANCES[1])
+        unlock_h4 = world.get_entrance(HUB_ENTRANCES[2])
+        unlock_h5 = world.get_entrance(HUB_ENTRANCES[3])
+        unlock_h6 = world.get_entrance(HUB_ENTRANCES[4])
+        unlock_h7 = world.get_entrance(HUB_ENTRANCES[5])
+
+        # Set the entrance rules equal to the urgent quest requirements for each tier
+        world.set_rule(unlock_h2, urgent_rules_by_id[HUB_TIER_URGENT_QUEST_NOS[QuestLevel.QL2]])
+        world.set_rule(unlock_h3, urgent_rules_by_id[HUB_TIER_URGENT_QUEST_NOS[QuestLevel.QL3]])
+        world.set_rule(unlock_h4, urgent_rules_by_id[HUB_TIER_URGENT_QUEST_NOS[QuestLevel.QL4]])
+        world.set_rule(unlock_h5, urgent_rules_by_id[HUB_TIER_URGENT_QUEST_NOS[QuestLevel.QL5]])
+        world.set_rule(unlock_h6, urgent_rules_by_id[HUB_TIER_URGENT_QUEST_NOS[QuestLevel.QL6]])
+        world.set_rule(unlock_h7, urgent_rules_by_id[HUB_TIER_URGENT_QUEST_NOS[QuestLevel.QL7]])
+
+        # If sunbreak is enabled, handle its regions too
+        if world.options.quest_rando_pool.value == QuestRandoPool.option_quest_rando_sunbreak:
+            unlock_m1 = world.get_entrance(MASTER_ENTRANCES[0])
+            unlock_m2 = world.get_entrance(MASTER_ENTRANCES[1])
+            unlock_m3 = world.get_entrance(MASTER_ENTRANCES[2])
+            unlock_m4 = world.get_entrance(MASTER_ENTRANCES[3])
+            unlock_m5 = world.get_entrance(MASTER_ENTRANCES[4])
+            unlock_m6 = world.get_entrance(MASTER_ENTRANCES[5])
+
+            world.set_rule(unlock_m1, urgent_rules_by_id[MR_TIER_URGENT_QUEST_NOS[QuestLevel.QL1]])
+            world.set_rule(unlock_m2, urgent_rules_by_id[MR_TIER_URGENT_QUEST_NOS[QuestLevel.QL2]])
+            world.set_rule(unlock_m3, urgent_rules_by_id[MR_TIER_URGENT_QUEST_NOS[QuestLevel.QL3]])
+            world.set_rule(unlock_m4, urgent_rules_by_id[MR_TIER_URGENT_QUEST_NOS[QuestLevel.QL4]])
+            world.set_rule(unlock_m5, urgent_rules_by_id[MR_TIER_URGENT_QUEST_NOS[QuestLevel.QL5]])
+            world.set_rule(unlock_m6, urgent_rules_by_id[MR_TIER_URGENT_QUEST_NOS[QuestLevel.QL6]])
+
+        # For mid urgents, grab the unlock condition from urgent_rules
+        # For other quests, add own item rule and check if they are unlocked
+        # by a mid urgent. if they are, add that mid_urgent as an unlock condition.
+        for quest in world.quest_pool:
+            # Handle urgent quests by skipping tier urgents and adding rules to mid urgents
+            if quest["quest_no"] in urgent_rules_by_id:
+                if quest["quest_no"] in MID_URGENT_QUEST_NOS:
+                    for loc_name in quest_clear_location_names(quest):
+                        world.set_rule(world.get_location(loc_name),urgent_rules_by_id[quest["quest_no"]])
+                else:
+                    continue
+
+            # Handle other quests
+            else:
+                # Check if the quest is one of the key quests unlocked by a mid urgent
+                # if it is, add the unlock rule for that mid urgent to the key quest's rule
+                if quest["quest_no"] in _KEY_QUEST_TO_URGENT and \
+                 _KEY_QUEST_TO_URGENT[quest["quest_no"]] in MID_URGENT_QUEST_NOS:
+                    for loc_name in quest_clear_location_names(quest):
+                        mid_urgent_rule = urgent_rules_by_id[_KEY_QUEST_TO_URGENT[quest["quest_no"]]]
+                        own_rule = Has(unlock_item_name(quest))
+                        world.set_rule(world.get_location(loc_name), mid_urgent_rule & own_rule)
+                # otherwise, just add the own item requirement
+                else:
+                    for loc_name in quest_clear_location_names(quest):
+                        own_rule = Has(unlock_item_name(quest))
+                        world.set_rule(world.get_location(loc_name), own_rule)
 
 def set_completion_condition(world: MHRiseWorld) -> None:
     """The player has received the Victory item. Same condition both modes
@@ -146,3 +183,44 @@ def set_completion_condition(world: MHRiseWorld) -> None:
     world.multiworld.completion_condition[world.player] = (
         lambda state: state.has("Victory", world.player)
     )
+
+
+def set_urgent_rules(quest_id_to_quest: dict[int,dict]) -> dict:
+    """
+    Create a rule set for each urgent quest
+    Every urgent quest has the following rules
+    Key rule: requires key_count unlock items for quests in key_list
+    urgent_rule_one/two: if there are mid-urgents blocking this quest,
+    add the rule for those mid-urgents to this quest's rule
+    own_rule: every quest requires its own unlock
+    """
+
+    urgent_to_rule = {}
+    for qn in URGENT_QUEST_DATA:
+        # We can skip quests not in the quest_pool, but need to iterate 
+        # over URGENT_QUEST_DATA instead of quest_pool to ensure
+        # that quests in previous_urgents are always computed 
+        # before they need to be referenced
+        if qn not in quest_id_to_quest:
+            continue
+
+        # If the urgent requires key quests, set a rule requiring that number of key quests
+        num_keys = URGENT_QUEST_DATA[qn]["key_count"]
+        keys = [unlock_item_name(quest_id_to_quest[key_no]) for key_no in URGENT_QUEST_DATA[qn]["key_list"]]
+        key_rule = HasFromList(count=num_keys, *keys) if num_keys and keys else True_()
+
+        # If the urgent requires urgents other than the level gate,
+        # set a rule requiring that those rules also be upheld
+        # due to the order of URGENT_QUEST_DATA, the previous urgents
+        # will always be defined in urgent_to_rule
+        previous_urgents = URGENT_QUEST_DATA[qn]["previous_urgents"] # a list with 0 - 2 quest_nos
+        urgent_rule_one = urgent_to_rule[previous_urgents[0]] if previous_urgents else True_()
+        urgent_rule_two = urgent_to_rule[previous_urgents[1]] if len(previous_urgents) > 1 else True_()
+
+        # All quests require their own item
+        own_rule = Has(unlock_item_name(quest_id_to_quest[qn]))
+
+        # Store the urgent quest rule for later
+        urgent_to_rule[qn] = And(key_rule, urgent_rule_one, urgent_rule_two, own_rule)
+
+    return urgent_to_rule
