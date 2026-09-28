@@ -60,6 +60,7 @@ local OUTPUT_NAME = "mhrise_quest_catalog.json"
 -- direct memory write) is irrelevant for a dump.
 local ARRAY_LEN_OFFSET = 0x1c
 local ARRAY_ELEM0_OFFSET = 0x20
+local ARRAY_ELEM1_OFFSET = 0x24
 
 local state = {
     last_result_preview = nil,
@@ -194,6 +195,18 @@ local function read_em_slot0(array_obj)
     return v
 end
 
+-- read element 1 of an EMTypes[]-style i32 array via the documented
+-- memory layout. Returns nil if the array is absent or has less than 2 elements.
+local function read_em_slot1(array_obj)
+    if not array_obj then return nil end
+    local len = nil
+    pcall(function() len = array_obj:read_dword(ARRAY_LEN_OFFSET) end)
+    if type(len) ~= "number" or len < 2 then return nil end
+    local v = nil
+    pcall(function() v = array_obj:read_dword(ARRAY_ELEM1_OFFSET) end)
+    return v
+end
+
 -- Walk one NormalQuestData.Param element into a flat table.
 --
 -- IMPORTANT: _Param array elements ARE the NormalQuestData.Param
@@ -222,9 +235,41 @@ local function extract_quest(param_obj, source_tag)
     local tgt_arr, boss_arr = nil, nil
     pcall(function() tgt_arr = param_obj:get_field("_TgtEmType") end)
     pcall(function() boss_arr = param_obj:get_field("_BossEmType") end)
-    row.target_em_type = read_em_slot0(tgt_arr)
-    row.boss_em_type = read_em_slot0(boss_arr)
+    row.target_em_type_one = read_em_slot0(tgt_arr)
+    row.boss_em_type_one = read_em_slot0(boss_arr)
 
+    -- For master rank quests, two target quests are hunting quests
+    -- Get the second em value from the array if it exists
+    if row.enemy_level == 3 then
+        row.target_em_type_two = read_em_slot1(tgt_arr)
+        row.boss_em_type_two = read_em_slot1(boss_arr)
+
+        -- handle cases where array is smaller than size 2
+        if row.target_em_type_two == nil then
+            row.target_em_type_two = -1
+            row.boss_em_type_two = -1
+            row.two_target_quest = 0
+        -- Both two target quests with 2 of the same target and
+        -- single target quests return 0 for the second em type
+        -- Detecting single target quests can be done by checking
+        -- quest type and if both of the boss monsters are the same
+        elseif row.boss_em_type_one ~= row.boss_em_type_two and
+                row.target_em_type_two == 0 then
+            row.two_target_quest = 0
+
+        -- Otherwise, there was a second monster, so set
+        -- two_target_quest flag to 1
+        else
+            row.two_target_quest = 1
+        end
+
+    else
+        -- for non-mr quests, multitarget quests are always 
+        -- bossrush, so we can just skip them
+        row.target_em_type_two = 0
+        row.boss_em_type_two = 0
+        row.two_target_quest = 0
+    end
     -- _DbgName is Japanese dev-time text but reachable without
     -- quest-counter UI context. Always populated as a fallback.
     pcall(function()

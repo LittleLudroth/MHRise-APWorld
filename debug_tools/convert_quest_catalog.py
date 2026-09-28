@@ -207,16 +207,16 @@ def convert(catalog_path: Path) -> None:
     dropped_unresolved: list[tuple[int, int, str]] = []  # (quest_no, em_type, source)
 
     for q in quests_in:
-        boss = q.get("boss_em_type") or 0
-        tgt = q.get("target_em_type") or 0
+        boss_one = q.get("boss_em_type_one") or 0
+        tgt_one = q.get("target_em_type_one") or 0
         monster_name = None
         monster_bucket = None
 
-        if boss != 0:
-            hit = em_lookup.get(boss)
+        if boss_one != 0:
+            hit = em_lookup.get(boss_one)
             if hit is None:
                 dropped_unresolved.append(
-                    (q.get("quest_no", -1), boss, q.get("source", "?"))
+                    (q.get("quest_no", -1), boss_one, q.get("source", "?"))
                 )
                 continue
             monster_name = hit["name"]
@@ -234,8 +234,11 @@ def convert(catalog_path: Path) -> None:
             "base_time": q.get("base_time"),
             "time_limit": q.get("time_limit"),
             "quest_life": q.get("quest_life"),
-            "boss_em_type": boss,
-            "target_em_type": tgt,
+            "boss_em_type_one": boss_one,
+            "boss_em_type_two": q.get("boss_em_type_two"),
+            "target_em_type_one": tgt_one,
+            "target_em_type_two": q.get("target_em_type_two"),
+            "two_target_quest": q.get("two_target_quest"),
             "monster_name": monster_name,
             "monster_bucket": monster_bucket,
         })
@@ -303,7 +306,10 @@ Fields per entry:
 - map_no: MapNoType enum
 - base_time / time_limit / quest_life: timing & cart fields
 - boss_em_type: primary spawned monster em_type, or 0 for no-monster quests
+- second_boss_em_type: secondary spawned monster em_type, or 0 for quests with one or fewer monsters
 - target_em_type: primary clear-condition target em_type
+- second_target_em_type: secondary clear-condition target em_type, or 0 if quest doesn't have different targets
+- two_target_quest: 0 if not an MR two target quest, 1 if an MR two target quest
 - monster_name: resolved display name from monsters.py master tables,
   or None when boss_em_type == 0
 - monster_bucket: "monster" (large/randomizable), "apex", or "small";
@@ -349,8 +355,11 @@ from typing import Any
         body_lines.append(f'        "base_time": {q["base_time"]!r},')
         body_lines.append(f'        "time_limit": {q["time_limit"]!r},')
         body_lines.append(f'        "quest_life": {q["quest_life"]!r},')
-        body_lines.append(f'        "boss_em_type": {q["boss_em_type"]!r},')
-        body_lines.append(f'        "target_em_type": {q["target_em_type"]!r},')
+        body_lines.append(f'        "boss_em_type": {q["boss_em_type_one"]!r},')
+        body_lines.append(f'        "second_boss_em_type": {q["boss_em_type_two"]!r},')
+        body_lines.append(f'        "target_em_type": {q["target_em_type_one"]!r},')
+        body_lines.append(f'        "second_target_em_type": {q["target_em_type_two"]!r},')
+        body_lines.append(f'        "two_target_quest": {q["two_target_quest"]!r},')
         body_lines.append(f'        "monster_name": {q["monster_name"]!r},')
         body_lines.append(f'        "monster_bucket": {q["monster_bucket"]!r},')
         body_lines.append("    },")

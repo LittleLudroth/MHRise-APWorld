@@ -132,6 +132,25 @@ MR_TIER_URGENT_QUEST_NOS: dict[QuestLevel, int] = {
     QuestLevel.QL6: 405600,  # Proof of Courage (Gaismagorm) - also the MR goal
 }
 
+FULL_TIER_URGENT_QUEST_NOS: dict[tuple[QuestLevel, EnemyLv], int] = {
+    (QuestLevel.QL3, EnemyLv.Village): 303,  # Feathered Frenzy (Aknosom)
+    (QuestLevel.QL4, EnemyLv.Village): 402,  # Monkey Wrench in Your Plans (Bishaten)
+    (QuestLevel.QL5, EnemyLv.Village): 501,  # Comeuppance (Magnamalo) — also the goal
+    (QuestLevel.QL2, EnemyLv.Low): 10203,  # Dead Ringer (Tetranadon)
+    (QuestLevel.QL3, EnemyLv.Low): 10302,  # Hellfire (Magnamalo)
+    (QuestLevel.QL4, EnemyLv.High): 10403,  # The Blue Apex (Apex Arzuros)
+    (QuestLevel.QL5, EnemyLv.High): 10503,  # The Restless Swamp (Jyuratodus)
+    (QuestLevel.QL6, EnemyLv.High): 10602,  # A Bewitching Dance (Mizutsune)
+    (QuestLevel.QL7, EnemyLv.High): 10701,  # Can't Kill It with Fire
+    (QuestLevel.QL7EX, EnemyLv.High): 10702,  # Serpent Goddess of Thunder (Narwa) - also the hub goal
+    (QuestLevel.QL1, EnemyLv.Master): 315100,  # Uninvited Guest (Damiyo Hermitaur)
+    (QuestLevel.QL2, EnemyLv.Master): 405200,  # Scarlet Tengu in the Shrine Ruins (Blood Orange Bishaten)
+    (QuestLevel.QL3, EnemyLv.Master): 405300,  # A Rocky Rampage (Garangolm)
+    (QuestLevel.QL4, EnemyLv.Master): 405400,  # Ice Wolf, Red Moon (Lunagaron)
+    (QuestLevel.QL5, EnemyLv.Master): 405500,  # Witness by Moonlight (Malzeno)
+    (QuestLevel.QL6, EnemyLv.Master): 405600,  # Proof of Courage (Gaismagorm) - also the MR goal
+}
+
 # Mid-Urgent quests that don't unlock a new tier of quests (in logic).
 # This set is used in rules.py to determine which key quests
 # have unlock requirements beyond access to the region
@@ -541,6 +560,9 @@ def _create_items_huntathon(world: MHRiseWorld) -> None:
     # reserved filler the gen fails with "Not enough filler items for
     # excluded locations".
     if bool(world.options.include_weapons.value):
+        # confirm starting_weapon is defined, should always pass
+        assert world.starting_weapon is not None
+
         starting_weapon_name = world.starting_weapon["name"]
         precollected.append(create_item_with_correct_classification(
             world, weapon_license_item_name(world.starting_weapon)))
@@ -644,6 +666,9 @@ def _create_items_questrando(world: MHRiseWorld) -> None:
     assert spare >= 1, "spare-slot invariant broken (need ≥1 slot beyond unlocks)"
 
     if bool(world.options.include_weapons.value):
+        # confirm starting_weapon is defined, should always pass
+        assert world.starting_weapon is not None
+
         starting_weapon_name = world.starting_weapon["name"]
         precollected.append(create_item_with_correct_classification(
             world, weapon_license_item_name(world.starting_weapon)))
@@ -747,6 +772,9 @@ def _create_items_questrando_hub(world: MHRiseWorld) -> None:
     assert spare >= 1, "spare-slot invariant broken (need ≥1 slot beyond unlocks)"
 
     if bool(world.options.include_weapons.value):
+        # confirm starting_weapon is defined, should always pass
+        assert world.starting_weapon is not None
+        
         starting_weapon_name = world.starting_weapon["name"]
         precollected.append(create_item_with_correct_classification(
             world, weapon_license_item_name(world.starting_weapon)))

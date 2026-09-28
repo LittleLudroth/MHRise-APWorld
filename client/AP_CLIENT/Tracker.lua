@@ -227,9 +227,11 @@ local function build_quest_sections()
     -- we never show a false "Inaccessible" claim.
     local function engine_accessible(qn_str)
         local ql = Lookups.quest_levels[qn_str]
+        local el = Lookups.enemy_levels[qn_str]
         if ql == nil then return true end   -- back-compat: old seed
+        if el == nil then el = 0 end -- back-compat: default to village quests if el not defined
         local is_urgent = Lookups.tier_urgents[tostring(ql)] == tonumber(qn_str)
-        local v = Quests.EngineQuestAccessible(tonumber(qn_str), ql, is_urgent)
+        local v = Quests.EngineQuestAccessible(tonumber(qn_str), ql, el, is_urgent)
         if v == nil then return true end
         return v
     end

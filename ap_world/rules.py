@@ -45,15 +45,15 @@ if TYPE_CHECKING:
 
 # A dictionary mapping all of the key quests to the urgent quest that unlocks them
 # quests that map to None are key quests that are available from the start
-_KEY_QUEST_TO_URGENT:dict[int, Any] = {}
+key_quest_to_urgent:dict[int, Any] = {}
 for quest in URGENT_QUEST_DATA:
     for key in URGENT_QUEST_DATA[quest]["unlocked_quests"]:
         if key in OPTIONAL_QUESTS:
             continue
-        _KEY_QUEST_TO_URGENT[key] = quest
+        key_quest_to_urgent[key] = quest
     for key in URGENT_QUEST_DATA[quest]["key_list"]:
-        if key not in _KEY_QUEST_TO_URGENT:
-            _KEY_QUEST_TO_URGENT[key] = None
+        if key not in key_quest_to_urgent:
+            key_quest_to_urgent[key] = None
 
 def set_all_rules(world: MHRiseWorld) -> None:
     if world.options.mode.value == Mode.option_hunt_a_thon:
@@ -164,10 +164,10 @@ def _set_rules_questrando(world: MHRiseWorld) -> None:
             else:
                 # Check if the quest is one of the key quests unlocked by a mid urgent
                 # if it is, add the unlock rule for that mid urgent to the key quest's rule
-                if quest["quest_no"] in _KEY_QUEST_TO_URGENT and \
-                 _KEY_QUEST_TO_URGENT[quest["quest_no"]] in MID_URGENT_QUEST_NOS:
+                if quest["quest_no"] in key_quest_to_urgent and \
+                 key_quest_to_urgent[quest["quest_no"]] in MID_URGENT_QUEST_NOS:
                     for loc_name in quest_clear_location_names(quest):
-                        mid_urgent_rule = urgent_rules_by_id[_KEY_QUEST_TO_URGENT[quest["quest_no"]]]
+                        mid_urgent_rule = urgent_rules_by_id[key_quest_to_urgent[quest["quest_no"]]]
                         own_rule = Has(unlock_item_name(quest))
                         world.set_rule(world.get_location(loc_name), mid_urgent_rule & own_rule)
                 # otherwise, just add the own item requirement

@@ -41,7 +41,8 @@ class Mode(Choice):
     """Game mode.
 
     - `hunt_a_thon` (default): hunting a large monster requires its
-      license. Licenses are scattered across the multiworld. Standard
+      license. Licenses are scattered across the multiworld. A random goal monster
+      is selected, and hunting that goal monster wins the game. Standard
       hunt-for-keys loop. Requires a save file at HR 100 with the ability
       to clear Crimson Glow Valstrax for base game, a save file at MR 10+
       with the ability to clear P. Malzeno and Amatsu if you enable Sunbreak,
@@ -66,18 +67,21 @@ class QuestRandoPool(Choice):
       is randomly swapped (within per-map compatibility). Clearing a quest
       sends AP checks when the matching `Unlock: <quest>` and — if weapons
       are enabled — the wielded weapon's license are held. Goal =
-      clearing the final village urgent "Comeuppance".
+      clearing the final village urgent "Comeuppance". There are 18 quests
+      in this pool.
     - `quest_rando_hub`: each low/high rank hub quest's boss monster is
       randomly swapped (within per-map compatibility). Clearing a quest sends
       AP checks when the matching `Unlock: <quest>` and — if weapons
       are enabled — the wielded weapon's license are held. Goal =
-      clearing the 7* urgent "Serpent Goddess of Thunder". 
+      clearing the 7* urgent "Serpent Goddess of Thunder". There are 60 quests
+      in this pool.
     - `quest_rando_sunbreak`: each hub and master rank quest's boss monster
       is randomly swapped (within per-map compatibility). Clearing a quest
       sends AP checks when the matching `Unlock: <quest>` and — if weapons
       are enabled — the wielded weapon's license are held. Goal =
       clearing the MR6 urgent "Proof of Courage". This option requires 
       Sunbreak, and will default to `quest_rando_hub` if sunbreak is disabled.
+      There are 119 quests in this pool.
     """
     display_name = "Quest Pool"
     option_quest_rando_village = 0

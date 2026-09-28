@@ -5,6 +5,7 @@
 local Lookups = {}
 
 local Weapons = require("AP_CLIENT/Weapons")
+local Utils = require("AP_CLIENT.Utilities")
 
 Lookups.connected = false
 Lookups.mode = "hunt_a_thon"  -- "hunt_a_thon" | "quest_rando"
@@ -26,13 +27,16 @@ Lookups.em_type_to_item_name = {}
 -- All quest_no keys are STRINGS for the same int-keyed-table reason
 -- (see Lookups.em_type_to_item_name above). JSON delivery naturally
 -- arrives string-keyed so this is just pass-through.
-Lookups.quest_swaps = {}     -- "quest_no" -> em_type (int)
-Lookups.quest_swap_names = {} -- "quest_no" -> swapped-in monster display name (gh #22)
+Lookups.quest_pool_type = "village" -- "village" | "hub" | "sunbreak"
+Lookups.quest_swaps = {}     -- "quest_no" -> em_types (array)
+Lookups.quest_swap_names = {} -- "quest_no" -> swapped-in monster display names (gh #22)
 Lookups.quest_names = {}     -- "quest_no" -> display name
 Lookups.quest_locations = {} -- "quest_no" -> 1 (set membership)
 Lookups.quest_unlocks = {}   -- "quest_no" -> "Unlock: <name>" item name
-Lookups.quest_levels = {}    -- "quest_no" -> QuestLevel int (QL2=1 QL3=2 QL4=3 QL5=4)
+Lookups.quest_levels = {}    -- "quest_no" -> QuestLevel int (QL1=0, QL2=1, ... QL7=6)
+Lookups.enemy_levels = {}    -- "quest_no" -> EnemyLv int (village=0, low=1, high=2, master=3)
 Lookups.tier_urgents = {}    -- "QL int str" -> that tier's urgent quest_no (int)
+Lookups.key_to_urgent = {}   -- "key quest_no" -> unlocking Urgent quest_no 
 Lookups.goal_quest = nil     -- int (quest_no)
 Lookups.starting_quest = nil -- int (quest_no)
 
@@ -47,13 +51,16 @@ function Lookups.Reset()
     Lookups.goal_monster = nil
     Lookups.item_name_to_em_type = {}
     Lookups.em_type_to_item_name = {}
+    Lookups.quest_pool_type = "village"
     Lookups.quest_swaps = {}
     Lookups.quest_swap_names = {}
     Lookups.quest_names = {}
     Lookups.quest_locations = {}
     Lookups.quest_unlocks = {}
     Lookups.quest_levels = {}
+    Lookups.enemy_levels = {}
     Lookups.tier_urgents = {}
+    Lookups.key_to_urgent = {}
     Lookups.goal_quest = nil
     Lookups.starting_quest = nil
     Lookups.death_link = false
@@ -82,7 +89,7 @@ end
 --   starting_weapon:            string                        (when enabled)
 --
 -- QuestRando:
---   quest_swaps:                {[quest_no_str]: em_type}
+--   quest_swaps:                {[quest_no_str]: em_types}
 --   quest_swap_names:           {[quest_no_str]: monster display name}
 --                               (swapped-in monster; absent on older seeds)
 --   quest_names:                {[quest_no_str]: display name}
@@ -91,6 +98,7 @@ end
 --   quest_unlocks:              {[quest_no_str]: "Unlock: <name>"}
 --   quest_levels:               {[quest_no_str]: QuestLevel int}  (QL2=1
 --                               QL3=2 QL4=3 QL5=4; absent on older seeds)
+--   enemy_levels                {[quest_no_str]}: EnemyLv int
 --   tier_urgents:               {[QL_int_str]: urgent quest_no}  (QL3/4/5;
 --                               absent on older seeds)
 --   goal_quest:                 int (quest_no)
@@ -113,6 +121,12 @@ function Lookups.Load(slot_data)
 
     if mode == "quest_rando" then
         Lookups.mode = "quest_rando"
+
+        -- backwards compat, assumes village quest pool for old questrando
+        if slot_data.quest_pool_type ~= nil then
+            Lookups.quest_pool_type = slot_data.quest_pool_type
+        end
+
         local swaps = slot_data.quest_swaps
         local locations = slot_data.quest_locations
         local names = slot_data.quest_names
@@ -121,7 +135,9 @@ function Lookups.Load(slot_data)
             return false, "quest_swaps / quest_locations missing"
         end
         for k, v in pairs(swaps) do
-            local em = type(v) == "number" and v or tonumber(v)
+            -- backwards compat, values sent as numbers are put in array
+            -- values sent as string are split by comma into an array
+            local em = type(v) == "number" and {v} or Utils.Split_Numbers(v)
             if em ~= nil then
                 Lookups.quest_swaps[tostring(k)] = em
             end
@@ -156,12 +172,36 @@ function Lookups.Load(slot_data)
                 end
             end
         end
+        local enemy_levels = slot_data.enemy_levels
+        if type(enemy_levels) == "table" then
+            for k, v in pairs(enemy_levels) do
+                local el = type(v) == "number" and v or tonumber(v)
+                if el ~= nil then
+                    Lookups.enemy_levels[tostring(k)] = el
+                end
+            end
+        end
         local urgents = slot_data.tier_urgents
         if type(urgents) == "table" then
             for k, v in pairs(urgents) do
                 local qn = type(v) == "number" and v or tonumber(v)
                 if qn ~= nil then
-                    Lookups.tier_urgents[tostring(k)] = qn
+                    -- backwords compat, ensure older key format is set to new key format
+                    -- Detects old versions by checking if slot_data.quest_pool_type is defined
+                    if slot_data.quest_pool_type == nil then
+                        Lookups.tier_urgents[tostring(k)..",0"] = qn
+                    else
+                        Lookups.tier_urgents[tostring(k)] = qn
+                    end
+                end
+            end
+        end
+        local key_to_urgent = slot_data.key_to_urgent
+        if type(key_to_urgent) == "table" then
+            for k, v in pairs(key_to_urgent) do
+                local qn = type(v) == "number" and v or tonumber(v)
+                if qn ~= nil then
+                        Lookups.key_to_urgent[tostring(k)] = qn
                 end
             end
         end

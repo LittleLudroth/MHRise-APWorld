@@ -88,7 +88,9 @@ end
 -- reads accept boolean or 0/1 number (some REFramework builds box bools).
 local _pqm_methods = nil          -- { check_unlock, unlock_urgent, clear_urgent }
 local _pqm_resolved = false
-local QUEST_CATEGORY_VILLAGE = 0
+local VILLAGE_QUEST_CATEGORY = 0
+local HUB_QUEST_CATEGORY = 2
+local MR_QUEST_CATEGORY = 7
 
 local function resolve_pqm_methods()
     if _pqm_resolved then return _pqm_methods end
@@ -138,24 +140,49 @@ end
 --            unresolved, or a call threw) — caller decides the fallback.
 -- quest_no / quest_level are integers; is_urgent is a bool (quest is its
 -- tier's urgent).
-function Quests.EngineQuestAccessible(quest_no, quest_level, is_urgent)
+function Quests.EngineQuestAccessible(quest_no, quest_level, enemy_level, is_urgent)
     local m = resolve_pqm_methods()
     if not m then return nil end
     local pqm = sdk.get_managed_singleton("snow.progress.quest.ProgressQuestManager")
     if not pqm then return nil end
 
     local cu = call_bool(m.check_unlock, pqm, quest_no)
-    local tier
-    if is_urgent then
-        tier = call_bool(m.unlock_urgent, pqm, QUEST_CATEGORY_VILLAGE, quest_level)
+
+    -- Set quest category
+    local qc
+    if enemy_level == 0 then
+        qc = VILLAGE_QUEST_CATEGORY
+    elseif enemy_level == 3 then
+        qc = MR_QUEST_CATEGORY
     else
-        tier = call_bool(m.clear_urgent, pqm, QUEST_CATEGORY_VILLAGE, quest_level)
+        qc = HUB_QUEST_CATEGORY
+    end
+
+    -- PoC's 6* status will break these functions, so instead look at if t5 is unlocked
+    if quest_no == 405600 then
+        quest_level = 4
+    end
+
+    local tier
+    -- The functions below don't work on 1* hub quests (always return false)
+    -- Manually check if the target quest is 1* hub and return true for tier
+    if qc == HUB_QUEST_CATEGORY and quest_level == 0 then
+        tier = true
+        if cu == nil or tier == nil then return nil end
+        return (tier == true) and (cu == true)
+    end
+
+    -- Handle all other quests
+    if is_urgent then
+        tier = call_bool(m.unlock_urgent, pqm, qc, quest_level)
+    else
+        tier = call_bool(m.clear_urgent, pqm, qc, quest_level)
     end
     if cu == nil or tier == nil then return nil end
     return (tier == true) and (cu == true)
 end
 
-local function apply_swap_to_param(param, em_type, quest_no)
+local function apply_swap_to_param(param, em_types, quest_no)
     local boss = nil
     local tgt = nil
     pcall(function() boss = param:get_field("_BossEmType") end)
@@ -165,13 +192,40 @@ local function apply_swap_to_param(param, em_type, quest_no)
             "[Quests] qn=%d: missing _BossEmType / _TgtEmType", quest_no))
         return false
     end
-    local ok_boss = pcall(function() boss:call("Set", 0, em_type) end)
-    local ok_tgt = pcall(function() tgt:call("Set", 0, em_type) end)
-    if not ok_boss or not ok_tgt then
-        pcall(function() boss:write_dword(0x20, em_type) end)
-        pcall(function() tgt:write_dword(0x20, em_type) end)
+    -- Modification varies by quest type
+    -- Handle single target quests
+    -- TODO: Finish adding quest modifications for multitarget quests
+    if # em_types == 1 then
+        local ok_boss = pcall(function() boss:call("Set", 0, em_types[1]) end)
+        local ok_tgt = pcall(function() tgt:call("Set", 0, em_types[1]) end)
+        if not ok_boss or not ok_tgt then
+            pcall(function() boss:write_dword(0x20, em_types[1]) end)
+            pcall(function() tgt:write_dword(0x20, em_types[1]) end)
+        end
+    -- handle same monster 2 target quests
+    elseif em_types[1] == em_types[2] then
+        local ok_boss_one = pcall(function() boss:call("Set", 0, em_types[1]) end)
+        local ok_boss_two = pcall(function() boss:call("Set", 1, em_types[2]) end)
+        local ok_tgt = pcall(function() tgt:call("Set", 0, em_types[1]) end)
+        if not ok_boss_one or not ok_boss_two or not ok_tgt then
+            pcall(function() boss:write_dword(0x20, em_types[1]) end)
+            pcall(function() boss:write_dword(0x24, em_types[2]) end)
+            pcall(function() tgt:write_dword(0x20, em_types[1]) end)
+        end
+    -- handle different monster 2 target quests
+    else
+        local ok_boss_one = pcall(function() boss:call("Set", 0, em_types[1]) end)
+        local ok_boss_two = pcall(function() boss:call("Set", 1, em_types[2]) end)
+        local ok_tgt_one = pcall(function() tgt:call("Set", 0, em_types[1]) end)
+        local ok_tgt_two = pcall(function() tgt:call("Set", 1, em_types[2]) end)
+        if not ok_boss_one or not ok_boss_two or not ok_tgt_one or not ok_tgt_two then
+            pcall(function() boss:write_dword(0x20, em_types[1]) end)
+            pcall(function() boss:write_dword(0x24, em_types[2]) end)
+            pcall(function() tgt:write_dword(0x20, em_types[1]) end)
+            pcall(function() tgt:write_dword(0x24, em_types[2]) end)
+        end
     end
-    return true
+return true
 end
 
 function Quests.ApplySwaps()
@@ -182,7 +236,7 @@ function Quests.ApplySwaps()
     local total = 0
     for qn_str, em in pairs(Lookups.quest_swaps or {}) do
         local n = tonumber(qn_str)
-        local em_n = type(em) == "number" and em or tonumber(em)
+        local em_n = em
         if n and em_n then
             pending[n] = em_n
             total = total + 1
@@ -199,7 +253,7 @@ function Quests.ApplySwaps()
                 if apply_swap_to_param(elem, em, qn) then
                     applied = applied + 1
                     Quests.last_swap_log[#Quests.last_swap_log + 1] =
-                        string.format("  qn=%d em=%d", qn, em)
+                        (# em == 1) and string.format("  qn=%d em=%d", qn, em[1]) or string.format("  qn=%d em=%d, %d", qn, em[1], em[2])
                     pending[qn] = nil
                 end
             end

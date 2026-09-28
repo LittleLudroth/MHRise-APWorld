@@ -17,7 +17,7 @@ from worlds.AutoWorld import World
 from . import items, locations, regions, rules
 from . import options as mhrise_options  # rename due to a name conflict with World.options
 from .data.monsters import MONSTERS, SUNBREAK_MONSTERS
-from .data.quests import QUESTS
+from .data.quests import QUESTS, EnemyLv
 from .data.weapons import WEAPONS
 from .items import _in_questrando_pool, _in_questrando_hub_pool, _in_questrando_mr_pool, \
                     _in_questsanity_pool, _in_questsanity_hub_pool, _in_questsanity_mr_pool
@@ -30,7 +30,7 @@ from .web_world import MHRiseWebWorld
 # .apworld zip (custom_worlds/). `os.path.join + open()` would only work
 # in the unpacked case — inside a zip, `__file__` points into the
 # archive and is not a real filesystem path.
-_MANIFEST_BYTES = pkgutil.get_data(__package__, "archipelago.json")
+_MANIFEST_BYTES = pkgutil.get_data(__package__, "archipelago.json") # type: ignore
 if _MANIFEST_BYTES is None:
     raise RuntimeError("archipelago.json missing from apworld package")
 WORLD_VERSION = json.loads(_MANIFEST_BYTES.decode("utf-8"))["world_version"]
@@ -108,7 +108,7 @@ class MHRiseWorld(World):
     # mutating QuestData._BossEmType[0] / _TgtEmType[0] on the
     # initQuestDataDictionary post-hook (Probe 3 idiom). The goal
     # quest is NOT in this map (vanilla Magnamalo preserved).
-    quest_swaps: dict[int, int]
+    quest_swaps: dict[int, list[str]]
 
     def generate_early(self) -> None:
         if self.options.mode.value == Mode.option_hunt_a_thon:
@@ -240,6 +240,7 @@ class MHRiseWorld(World):
         if self.options.quest_rando_pool.value == QuestRandoPool.option_quest_rando_sunbreak \
          and not bool(self.options.include_sunbreak):
             self.options.quest_rando_pool.value = QuestRandoPool.option_quest_rando_hub
+            logging.warning("Sunbreak quest pool selected with Sunbreak content disabled. Defaulting to base game hub quests.")
 
         # Set quest pool, goal, and starter quests for hub
         if self.options.quest_rando_pool.value == QuestRandoPool.option_quest_rando_hub:
@@ -363,7 +364,7 @@ class MHRiseWorld(World):
                 return False
             return True
 
-        map_to_safe_ems: dict[Any, list[int]] = {}
+        map_to_safe_ems: dict[Any, Any] = {}
         for q in QUESTS:
             if q["boss_em_type"] == 0:
                 continue
@@ -397,8 +398,26 @@ class MHRiseWorld(World):
                     # current options — leave the quest vanilla
                     # rather than crash.
                     continue
-                target_em = self.random.choice(candidates)
-                self.quest_swaps[quest["quest_no"]] = target_em
+                if quest["two_target_quest"]:
+                    # Handle the two target hunting quests in Sunbreak with same monster twice
+                    # These quests have one objective for hunting 2 of a monster, so they 
+                    # must be randomized to have the same monster twice
+                    if quest["second_target_em_type"] == 0:
+                        target_em_one = self.random.choice(candidates)
+                        target_em_two = target_em_one
+                    # Handle two target hunting quests with two different monsters
+                    else:
+                        target_em_one = self.random.choice(candidates)
+                        target_em_two = self.random.choice(candidates)
+                        # I don't know what happens if we try to have two seperate hunt one of a monster
+                        # objectives, so we ensure that the two monsters are different
+                        while target_em_one == target_em_two:
+                            target_em_two = self.random.choice(candidates)
+                    self.quest_swaps[quest["quest_no"]] = [str(target_em_one), str(target_em_two)]
+                else:
+                    # Handle all other valid quests
+                    target_em = self.random.choice(candidates)
+                    self.quest_swaps[quest["quest_no"]] = [str(target_em)]
 
         # Weapon licenses (when enabled). Same shape as HuntAThon: a
         # random WeaponPool subset, one precollected starter, the
@@ -466,7 +485,7 @@ class MHRiseWorld(World):
             # quest_no keys MUST be strings — REFramework's Lua VM
             # mishandles int-keyed tables (see CLAUDE.md gotcha).
             slot_data["quest_swaps"] = {
-                str(qn): em for qn, em in self.quest_swaps.items()
+                str(qn): ",".join(em) for qn, em in self.quest_swaps.items()
             }
             # Per-swapped-quest display name of the monster the boss was
             # swapped TO, so the client tracker can show what the player
@@ -480,9 +499,10 @@ class MHRiseWorld(World):
                 for m in MONSTERS + SUNBREAK_MONSTERS
             }
             slot_data["quest_swap_names"] = {
-                str(qn): _em_to_monster_name[em]
+                str(qn): ", ".join(map(lambda x: _em_to_monster_name[int(x)], em))
                 for qn, em in self.quest_swaps.items()
-                if em in _em_to_monster_name
+                if (len(em) == 1 and em[0] in _em_to_monster_name) or 
+                  (len(em) == 2 and em[0] in _em_to_monster_name and em[1] in _em_to_monster_name)
             }
             # Display name (English where dumper resolved it) per
             # quest_no, so the client tracker / chat can show titles
@@ -491,7 +511,7 @@ class MHRiseWorld(World):
                 str(q["quest_no"]): items.quest_display_name(q)
                 for q in self.quest_pool
             }
-            # Set of village quest_nos that send AP location checks
+            # Set of quest_nos that send AP location checks
             # on clear. The client uses this to decide whether to
             # send a check (or silently drop, for hub / event clears).
             # Value is just `1` (placeholder) — only key membership matters.
@@ -505,7 +525,7 @@ class MHRiseWorld(World):
                 str(q["quest_no"]): items.unlock_item_name(q)
                 for q in self.quest_pool
             }
-            # quest_no -> QuestLevel int (QL2=1 QL3=2 QL4=3 QL5=4). The
+            # quest_no -> QuestLevel int (QL1=0, QL2=1 QL3=2 ...). The
             # tracker pairs this with the engine's per-tier urgent oracle
             # (isUnlockUrgent / isClearUrgent) to decide Available vs
             # Inaccessible (gh #23). quest_no keys string-coerced
@@ -514,15 +534,58 @@ class MHRiseWorld(World):
                 str(q["quest_no"]): int(q["quest_level"])
                 for q in self.quest_pool
             }
-            # QuestLevel int (str) -> that tier's urgent quest_no. Lets the
+            # quest_no -> Enemy Level int (village = 0, low = 1, high = 2, master = 3)
+            # The tracker pairs this with the engine's per-tier urgent oracle
+            # to decide availability. quest_no keys string-coerced
+            slot_data["enemy_levels"] = {
+                str(q["quest_no"]): int(q["enemy_level"])
+                for q in self.quest_pool
+            }
+            # Handle quest pool specific data entries
+            # quest_pool_type:
+            # string indicating which quest pool we are working with
+            # tier_urgents:
+            # QuestLevel,EnemyLv (str) -> that tier's urgent quest_no. Lets the
             # client identify each pool quest as its tier's urgent (which
             # gates on isUnlockUrgent) vs a non-urgent (gates on
-            # isClearUrgent). QL2's urgent (202) is the precollected
-            # starter and absent here — fine, 202 reads accessible anyway.
-            slot_data["tier_urgents"] = {
-                str(int(ql)): qn
-                for ql, qn in items.TIER_URGENT_QUEST_NOS.items()
-            }
+            # isClearUrgent).
+            # key_to_urgent:
+            # quest_no -> unlocking urgent quest_no
+            # Allows the client to correctly identify sunbreak key quest availability
+            # based on if their mid-urgent quest is available. 
+            # Only used by sunbreak quest pool, left empty on other options
+            if self.options.quest_rando_pool.value == QuestRandoPool.option_quest_rando_village:
+                slot_data["quest_pool_type"] = "village"
+                slot_data["tier_urgents"] = {
+                    f"{int(key[0])},{int(key[1])}": qn
+                    for key, qn in items.FULL_TIER_URGENT_QUEST_NOS.items()
+                    if key[1] == EnemyLv.Village
+                }
+            if self.options.quest_rando_pool.value == QuestRandoPool.option_quest_rando_hub:
+                slot_data["quest_pool_type"] = "hub"
+                slot_data["tier_urgents"] = {
+                    f"{int(key[0])},{int(key[1])}": qn
+                    for key, qn in items.FULL_TIER_URGENT_QUEST_NOS.items()
+                    if key[1] == EnemyLv.Low or key[1] == EnemyLv.High
+                }
+            if self.options.quest_rando_pool.value == QuestRandoPool.option_quest_rando_sunbreak:
+                slot_data["quest_pool_type"] = "sunbreak"
+                slot_data["tier_urgents"] = {
+                    f"{int(key[0])},{int(key[1])}": qn
+                    for key, qn in items.FULL_TIER_URGENT_QUEST_NOS.items()
+                    if key[1] != EnemyLv.Village
+                }
+
+                # For master rank mid-urgents, we need a bit more information
+                # We pass a mapping of master rank key quest_nos -> unlocking urgent quest_no
+                # Optionals and lower rank quests can still rely on tier based unlocks
+                from .rules import key_quest_to_urgent
+                slot_data["key_to_urgent"] = {
+                    str(q["quest_no"]): key_quest_to_urgent[q["quest_no"]]
+                    for q in self.quest_pool
+                    if q["quest_no"] in key_quest_to_urgent and q["enemy_level"] == EnemyLv.Master
+                }
+            
             slot_data["goal_quest"] = self.goal_quest["quest_no"]
             slot_data["starting_quest"] = self.starting_quest["quest_no"]
             slot_data["include_sunbreak"] = bool(self.options.include_sunbreak.value)
