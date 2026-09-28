@@ -495,11 +495,11 @@ class MHRiseWorld(World):
             # that were actually swapped appear; an em_type with no table
             # entry is skipped (defensive — shouldn't happen).
             _em_to_monster_name = {
-                m["em_type"]: m["name"]
+                str(m["em_type"]): m["name"]
                 for m in MONSTERS + SUNBREAK_MONSTERS
             }
             slot_data["quest_swap_names"] = {
-                str(qn): ", ".join(map(lambda x: _em_to_monster_name[int(x)], em))
+                str(qn): ", ".join(map(lambda x: _em_to_monster_name[x], em))
                 for qn, em in self.quest_swaps.items()
                 if (len(em) == 1 and em[0] in _em_to_monster_name) or 
                   (len(em) == 2 and em[0] in _em_to_monster_name and em[1] in _em_to_monster_name)
