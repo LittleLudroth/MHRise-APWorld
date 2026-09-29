@@ -123,6 +123,10 @@ class MHRiseWorld(World):
                 "No monsters available. Sunbreak is disabled and the Rise "
                 "monster list is empty — this should be impossible."
             )
+        if len(available) < 3:
+            raise ValueError(
+                "Too many monsters were excluded. There are less than 3 monsters in the pool"
+            )
 
         requested = int(self.options.monster_count.value)
         n = min(requested, len(available))
@@ -358,6 +362,8 @@ class MHRiseWorld(World):
             mon = em_to_monster.get(em)
             if mon is None:
                 return False
+            if mon["name"] in self.options.excluded_monsters.value:
+                return False # Exclude any monsters manually removed from the pool
             if mon["dlc"] == "sunbreak" and not include_sunbreak:
                 return False
             if "risen" in mon["tags"] and not include_risen:
@@ -407,6 +413,10 @@ class MHRiseWorld(World):
                         target_em_two = target_em_one
                     # Handle two target hunting quests with two different monsters
                     else:
+                        # If there is only one possible choice in candidates, leave quest
+                        # vanilla rather than potentially breaking the target system
+                        if len(candidates) < 2:
+                            continue
                         target_em_one = self.random.choice(candidates)
                         target_em_two = self.random.choice(candidates)
                         # I don't know what happens if we try to have two seperate hunt one of a monster
@@ -634,6 +644,9 @@ class MHRiseWorld(World):
         compute the universe of monsters the random subset is drawn
         from. Downstream code should consult `self.seed_monsters` rather
         than re-running this filter."""
+        # Remove any monsters that are manually excluded
+        if monster["name"] in self.options.excluded_monsters.value:
+            return False
         if monster["dlc"] == "sunbreak" and not bool(self.options.include_sunbreak.value):
             return False
         if "risen" in monster["tags"] and not bool(self.options.include_risen.value):

@@ -23,6 +23,8 @@ Options that apply per mode:
   start with. Does nothing if IncludeWeapons is disabled.
 - MonsterCount: HuntAThon only — QuestRando's pool size is derived
   from the village quest catalog.
+- ExcludedMonsters: both modes. Allows player to manually remove monsters
+  from the pool.
 - Deathlink: both modes. Enables or disables deathlink.
 """
 
@@ -30,11 +32,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from Options import Choice, DefaultOnToggle, OptionSet, PerGameCommonOptions, Range, Toggle, FreeText
+from Options import Choice, DefaultOnToggle, OptionSet, PerGameCommonOptions, Range, Toggle
 
 from .data.weapons import WEAPONS
+from .data.monsters import MONSTERS
 
 _WEAPON_NAMES = {w["name"] for w in WEAPONS}
+_MONSTER_NAMES = {m["name"] for m in MONSTERS}
 
 
 class Mode(Choice):
@@ -134,7 +138,7 @@ class WeaponPool(OptionSet):
           - Bow
           - Switch Axe
 
-    Must contain at least one valid weapon name. Invalid sets will default
+    Must contain at least one valid weapon name. Empty sets will default
     to all weapons. Names are case-sensitive and must match the entries in
     `data/weapons.py`. No effect when `include_weapons` is disabled.
     Applies to both modes."""
@@ -149,7 +153,7 @@ class StartingWeapons(OptionSet):
     of the weapons types in this pool will be precollected. Leave the 
     option as "Random" to get any weapon from the weapon pool.
 
-    Must contain at least one valid weapon name or Random. Invalid sets will
+    Must contain at least one valid weapon name or Random. Empty sets will
     default to random selection. Any names not in the weapon pool will be ignored.
     No effect when `include_weapons` is disabled. Applies to both modes.
     """
@@ -165,6 +169,18 @@ class RandomizeQuestMonsters(DefaultOnToggle):
     altering the in-game fight. No effect in HuntAThon."""
 
     display_name = "Randomize Quest Monsters"
+
+class ExcludedMonsters(OptionSet):
+    """
+    Select any monsters which should be excluded from the pool. Note that
+    excluding monsters will also reduce the maximum size of the huntathon pool.
+    If you exclude all monsters in a biome, questrando will use default quest monsters in that biome.
+    Leave empty to keep the entire monster pool.
+    """
+
+    display_name = "Excluded Monsters"
+    valid_keys = _MONSTER_NAMES
+    default = set()
 
 
 class MonsterCount(Range):
@@ -195,5 +211,6 @@ class MHRiseOptions(PerGameCommonOptions):
     weapon_pool: WeaponPool
     starting_weapons: StartingWeapons
     randomize_quest_monsters: RandomizeQuestMonsters
+    excluded_monsters: ExcludedMonsters
     monster_count: MonsterCount
     deathlink: Deathlink
