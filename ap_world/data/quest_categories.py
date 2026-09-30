@@ -33,7 +33,6 @@ from these lists, as they are not locations. We only made The Blue Apex a locati
 it directly unlocks a tier, and we would have liked to just skip it entirely.
 """
 from __future__ import annotations
-from enum import IntEnum, IntFlag
 from typing import Any
 
 URGENT_QUEST_DATA: dict[int, dict[str, Any]] = {

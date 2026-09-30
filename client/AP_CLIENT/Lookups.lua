@@ -23,6 +23,14 @@ Lookups.item_name_to_em_type = {}
 -- writes and reads sidesteps both bugs.
 Lookups.em_type_to_item_name = {}
 
+-- item_name to monster tier (easy, medium, hard, start, goal)
+Lookups.license_to_tier = {}
+
+-- number of monsters in each tier (easy, medium, hard)
+Lookups.easy_monster_count = 0
+Lookups.medium_monster_count = 0
+Lookups.hard_monster_count = 0
+
 -- QuestRando fields (populated only when mode == "quest_rando").
 -- All quest_no keys are STRINGS for the same int-keyed-table reason
 -- (see Lookups.em_type_to_item_name above). JSON delivery naturally
@@ -51,6 +59,10 @@ function Lookups.Reset()
     Lookups.goal_monster = nil
     Lookups.item_name_to_em_type = {}
     Lookups.em_type_to_item_name = {}
+    Lookups.license_to_tier = {}
+    Lookups.easy_monster_count = 0
+    Lookups.medium_monster_count = 0
+    Lookups.hard_monster_count = 0
     Lookups.quest_pool_type = "village"
     Lookups.quest_swaps = {}
     Lookups.quest_swap_names = {}
@@ -241,6 +253,20 @@ function Lookups.Load(slot_data)
         if n ~= nil then
             Lookups.item_name_to_em_type[item_name] = n
             Lookups.em_type_to_item_name[tostring(n)] = item_name
+        end
+    end
+
+    -- Populate a lookup table which maps licenses to the corresponding monster tier
+    if type(slot_data.license_to_tier) == "table" then
+        Lookups.license_to_tier = slot_data.license_to_tier
+        for _, level in pairs(Lookups.license_to_tier) do
+            if level == "easy" then
+                Lookups.easy_monster_count = Lookups.easy_monster_count + 1
+            elseif level == "medium" then
+                Lookups.medium_monster_count = Lookups.medium_monster_count + 1
+            elseif level == "hard" then
+                Lookups.hard_monster_count = Lookups.hard_monster_count + 1
+            end
         end
     end
 

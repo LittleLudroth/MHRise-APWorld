@@ -45,7 +45,7 @@ from .items import (
 )
 from .options import Mode, QuestRandoPool
 from .data.quests import QuestLevel, EnemyLv
-
+from .data.monster_categories import EASY_MONSTERS, MEDIUM_MONSTERS, HARD_MONSTERS
 if TYPE_CHECKING:
     from .world import MHRiseWorld
 
@@ -122,20 +122,30 @@ def create_all_locations(world: MHRiseWorld) -> None:
 
 
 def _create_locations_huntathon(world: MHRiseWorld) -> None:
-    """Add hunt locations for every monster in the seed to the Origin region.
+    """Add hunt locations for every monster in the seed to the corresponding region
 
     The seed subset is computed in `world.generate_early` and stored on
     `world.seed_monsters`."""
-    from .regions import ORIGIN_REGION_NAME
+    regions = [world.get_region(n) for n in world.region_names]
 
-    origin = world.get_region(ORIGIN_REGION_NAME)
-
-    location_map: dict[str, int] = {}
+    # Add locations for each region based on what difficulty the monster is
+    easy_location_map: dict[str, int] = {}
+    medium_location_map: dict[str, int] = {}
+    hard_location_map: dict[str, int] = {}
     for monster in world.seed_monsters:
-        for name in hunt_location_names(monster):
-            location_map[name] = LOCATION_NAME_TO_ID[name]
+        if monster["name"] in EASY_MONSTERS:
+            for name in hunt_location_names(monster):
+                easy_location_map[name] = LOCATION_NAME_TO_ID[name]
+        elif monster["name"] in MEDIUM_MONSTERS:
+            for name in hunt_location_names(monster):
+                medium_location_map[name] = LOCATION_NAME_TO_ID[name]
+        else:
+            for name in hunt_location_names(monster):
+                hard_location_map[name] = LOCATION_NAME_TO_ID[name]
 
-    origin.add_locations(location_map, MHRiseLocation)
+    regions[0].add_locations(easy_location_map, MHRiseLocation)
+    regions[1].add_locations(medium_location_map, MHRiseLocation)
+    regions[2].add_locations(hard_location_map, MHRiseLocation)
 
     # Both goal-monster hunt locations are EXCLUDED so AP fill never
     # places progression/useful items at them. (2/2) is then locked with

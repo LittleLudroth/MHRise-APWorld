@@ -1,18 +1,19 @@
 """Access rules for the MH Rise apworld.
 
 - HuntAThon: each hunt location requires the corresponding monster's
-  license. Both (1/2) and (2/2) share the same rule since both fire on
+  license. Additionally, medium monsters require half of all unlocks 
+  for easy monsters and hard monsters require half of all unlocks for
+  medium monsters. Both (1/2) and (2/2) share the same rule since both fire on
   the same in-game hunt event.
 - QuestRando:
   - Each Clear location requires the matching `Unlock: X` item.
-  - QL3+ non-urgent quests additionally require their tier's urgent
+  - non-urgent quests additionally require their tier's urgent
     unlock (engine won't show the rest of the tier until the urgent
     has been cleared).
-  - The tier urgent quests themselves additionally require every
-    `Unlock:` from the prior tier — over-approximation of the
-    engine's "clear N key quests before the urgent appears" gate.
-    Concentrates the heavy prior-tier dependency on a single quest
-    per tier (3 urgents total) so AP fill stays manageable.
+  - The tier urgent quests themselves additionally require enough key
+    unlocks from the prior group of keys to unlock them in game.
+  - Both (1/2) and (2/2) share the same rule since both fire on
+    the same in-game quest clear event.
 
 Precollected items satisfy their own rule trivially — `state.has`
 returns True for precollected items just like items received from the
@@ -23,6 +24,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from typing import TYPE_CHECKING, Any
+from math import ceil
 
 from rule_builder.rules import Has, HasAll, HasFromList, True_, And
 
@@ -64,10 +66,38 @@ def set_all_rules(world: MHRiseWorld) -> None:
 
 
 def _set_rules_huntathon(world: MHRiseWorld) -> None:
+    """
+    Handle rules by monster difficulty
+    Each difficulty of monster requires half of the unlocks from the previous tier
+    Additionally, the goal monster requires half of the hard monster unlocks
+    """
+    from .regions import HUNTATHON_ENTRANCES
+
+    # Get the entrances for medium and hard monsters
+    medium_entrance = world.get_entrance(HUNTATHON_ENTRANCES[1])
+    hard_entrance = world.get_entrance(HUNTATHON_ENTRANCES[2])
+
+    # Require half of the unlocks for monsters in previous tier
+    medium_rule = HasFromList(count=ceil(len(world.easy_seed_monsters) / 2),
+                               *[license_item_name(m) for m in world.easy_seed_monsters])
+    world.set_rule(medium_entrance, medium_rule)
+
+    hard_rule = HasFromList(count=ceil(len(world.medium_seed_monsters) / 2),
+                             *[license_item_name(m) for m in world.medium_seed_monsters])
+    world.set_rule(hard_entrance, hard_rule)
+
+    goal_rule = HasFromList(count=ceil(len(world.hard_seed_monsters) / 2),
+                             *[license_item_name(m) for m in world.hard_seed_monsters])
+
+    # Apply license requirement to every monster, and apply goal rule to final monster
     for monster in world.seed_monsters:
-        rule = Has(license_item_name(monster))
-        for loc_name in hunt_location_names(monster):
-            world.set_rule(world.get_location(loc_name), rule)
+        license_rule = Has(license_item_name(monster))
+        if monster == world.goal_monster:
+            for loc_name in hunt_location_names(monster):
+                world.set_rule(world.get_location(loc_name), And(license_rule, goal_rule))
+        else:
+            for loc_name in hunt_location_names(monster):
+                world.set_rule(world.get_location(loc_name), license_rule)
 
 
 def _set_rules_questrando(world: MHRiseWorld) -> None:

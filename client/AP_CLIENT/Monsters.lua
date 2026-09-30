@@ -88,13 +88,35 @@ local function on_enemy_died(em_type)
         return
     end
 
-    -- Soft gate: only send checks for monsters whose license we hold,
-    -- OR for the starting monster (precollected — never arrives via
-    -- on_items_received in some AP setups, so we treat it as always held).
+    -- Soft gate: only send checks for monsters within regions that we can reach 
+    -- and whose license we hold OR for the starting monster
+    -- (precollected — never arrives via on_items_received in some AP setups,
+    -- so we treat it as always held).
     local monster_name = item_name:match("^(.*) License$")
     local is_starter = (monster_name ~= nil) and (monster_name == Lookups.starting_monster)
     if not is_starter and not Items.Has(item_name) then
         log.info(string.format("[Monsters] skipped check for %s (no license held)", item_name))
+        return
+    end
+
+    -- Additionally check if we can actually reach the tier the monster is in
+    -- If we cannot, don't send the check
+    local tier = Lookups.license_to_tier(item_name)
+    local can_reach_tier
+    if tier == "medium" then
+        can_reach_tier = Items.reached_medium
+    elseif tier == "hard" then
+        can_reach_tier = Items.reached_hard
+    elseif tier == "goal" then
+        can_reach_tier = Items.reached_goal
+    else
+        -- back-compat: licenses not in license_to_tier default to true
+        -- For old seeds, this means all licenses will default to true
+        can_reach_tier = true
+    end
+
+    if not can_reach_tier then
+        log.info(string.format("[Monsters] skipped check for %s (can't reach tier)", item_name))
         return
     end
 

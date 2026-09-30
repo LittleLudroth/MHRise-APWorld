@@ -1,6 +1,7 @@
 """Region graph for the MH Rise apworld.
 
-huntathon currently has a single region, the origin region
+huntathon currently has three regions, for easy, medium, and hard monsters
+
 Questathon has regions split by quest level, with each region
 having an exit to the next quest level
 """
@@ -22,6 +23,7 @@ ORIGIN_REGION_NAME = "Origin"
 VILLAGE_ENTRANCES = tuple(["Unlock V3", "Unlock V4", "Unlock V5"])
 HUB_ENTRANCES = tuple(["Unlock H2", "Unlock H3", "Unlock H4", "Unlock H5", "Unlock H6", "Unlock H7"])
 MASTER_ENTRANCES = tuple(["Unlock M1", "Unlock M2", "Unlock M3", "Unlock M4", "Unlock M5", "Unlock M6"])
+HUNTATHON_ENTRANCES = tuple(["Unlock Medium Monsters", "Unlock Hard Monsters"])
 
 
 def create_and_connect_regions(world: MHRiseWorld) -> None:
@@ -102,7 +104,15 @@ def create_and_connect_regions(world: MHRiseWorld) -> None:
         world.multiworld.regions += all_regions
         world.region_names = [r.name for r in all_regions]
 
+    else:
+        # Create regions for medium and hard difficulty monsters
+        medium = Region("Medium Monsters", world.player, world.multiworld)
+        origin.connect(medium, HUNTATHON_ENTRANCES[0])
+        all_regions.append(medium)
 
-    # Currently, Huntathon has no additional regions, so just create the origin
-    world.multiworld.regions += all_regions
-    world.region_names = [r.name for r in all_regions]
+        hard = Region("Hard Monsters", world.player, world.multiworld)
+        medium.connect(hard, HUNTATHON_ENTRANCES[1])
+        all_regions.append(hard)
+
+        world.multiworld.regions += all_regions
+        world.region_names = [r.name for r in all_regions]

@@ -96,7 +96,7 @@ SUNBREAK_MONSTERS: tuple[dict[str, Any], ...] = (
     {"name": "Amatsu",                 "em_type":  58, "enum_name": "EmType058_00", "dlc": "sunbreak", "tags": ["elder-dragon"]},
 
     # Subspecies / variants
-    {"name": "Blood Orange Bishaten",  "em_type": 346, "enum_name": "EmType090_01", "dlc": "sunbreak", "tags": []},
+    {"name": "Blood Orange Bishaten",  "em_type": 346, "enum_name": "EmType090_01", "dlc": "sunbreak", "tags": ["non-randomizable"]},
     {"name": "Aurora Somnacanth",      "em_type": 349, "enum_name": "EmType093_01", "dlc": "sunbreak", "tags": []},
     {"name": "Pyre Rakna-Kadaki",      "em_type": 350, "enum_name": "EmType094_01", "dlc": "sunbreak", "tags": []},
     {"name": "Magma Almudron",         "em_type": 351, "enum_name": "EmType095_01", "dlc": "sunbreak", "tags": []},

@@ -24,11 +24,16 @@ across the multiworld as Archipelago items. Hunting a licensed monster
 sends a check to the AP server, which causes the multiworld to release
 more items — including more licenses.
 
-The license requirement is a **soft gate**: the player can fight any
+Additionally, the huntathon monster pool is partitioned into three
+tiers of monsters: an easy tier, a medium tier, and a hard tier.
+Access to each tier is gated by completing at least half of the previous tier.
+The goal monster for the seed is gated behind clearing half of the hard tier.
+
+The license and tier requirements are a **soft gate**: the player can fight any
 monster, but the check only sends when the player holds the
-corresponding license. Hunting an unlicensed monster simply does
-nothing from Archipelago's perspective. Goal: hunt the goal elder
-dragon.
+corresponding license and meets the tier requirements. Hunting an monster while
+missing a requirement simply does nothing from Archipelago's perspective. 
+Goal: hunt the goal elder dragon.
 
 ### Quest Randomizer (`quest_rando`)
 

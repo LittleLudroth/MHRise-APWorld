@@ -17,6 +17,7 @@ from worlds.AutoWorld import World
 from . import items, locations, regions, rules
 from . import options as mhrise_options  # rename due to a name conflict with World.options
 from .data.monsters import MONSTERS, SUNBREAK_MONSTERS
+from .data.monster_categories import EASY_MONSTERS, MEDIUM_MONSTERS, HARD_MONSTERS
 from .data.quests import QUESTS, EnemyLv
 from .data.weapons import WEAPONS
 from .items import _in_questrando_pool, _in_questrando_hub_pool, _in_questrando_mr_pool, \
@@ -59,7 +60,7 @@ class MHRiseWorld(World):
     # Populated by regions.py. Stores the region names for the world's regions 
     # in increasing order of quest level. Currently only has origin for huntathon
     # and varies by quest pool type in questathon
-    region_names:list[Any] # This will have region names in increasing order of quest level
+    region_names:list[Any] # This will have region names in increasing order of quest level/monster difficulty
 
     # Populated by generate_early. The single monster whose license is
     # precollected at seed start, so the player has something huntable
@@ -90,6 +91,14 @@ class MHRiseWorld(World):
     # subset of monsters this seed actually uses — drives location
     # creation, item pool, rules, and the slot_data em_type map.
     seed_monsters: list[dict]
+
+    # Populated by generate_early (HuntAThon only). The randomly-chosen
+    # subset of monsters this seed actually uses, split by monster difficulty
+    # used for determining region access requirements in rules and by client
+    # Exclude start and end monsters, since we don't want to count those in rules
+    easy_seed_monsters: list[dict]
+    medium_seed_monsters: list[dict]
+    hard_seed_monsters: list[dict]
 
     # Populated by generate_early (QuestRando only).
     # quest_pool: the village quests in this seed's randomizer scope
@@ -137,11 +146,18 @@ class MHRiseWorld(World):
             )
         assert n >= 3, "monster_count Range should enforce min=3"
 
-        # Pick starter first from the full available pool, then goal from
+        filtered_easy_monsters, filtered_medium_monsters, filtered_hard_monsters = self._split_monsters_by_tier(available)
+
+        # Pick starter first from the lowest difficulty pool, then goal from
         # the elder-dragons (minus starter, in case the starter happens
         # to be one). This way both are guaranteed to land in
         # seed_monsters regardless of how the random sample falls.
-        self.starting_monster = self.random.choice(available)
+        if filtered_easy_monsters:
+            self.starting_monster = self.random.choice(filtered_easy_monsters)
+        elif filtered_medium_monsters:
+            self.starting_monster = self.random.choice(filtered_medium_monsters)
+        else:
+            self.starting_monster = self.random.choice(filtered_hard_monsters)
 
         elder_dragon_candidates = [
             m for m in available
@@ -157,20 +173,59 @@ class MHRiseWorld(World):
 
         # Fill out the seed with random other monsters until we hit n.
         # Starter and goal are always in. n>=2 guarantees this fits.
-        rest_pool = [
-            m for m in available
+        easy_rest_pool = [
+            m for m in filtered_easy_monsters
             if m["name"] != self.starting_monster["name"]
             and m["name"] != self.goal_monster["name"]
         ]
-        rest = self.random.sample(rest_pool, n - 2)
-        self.seed_monsters = [self.starting_monster, self.goal_monster] + rest
+        medium_rest_pool = [
+            m for m in filtered_medium_monsters
+            if m["name"] != self.starting_monster["name"]
+            and m["name"] != self.goal_monster["name"]
+        ]
+        hard_rest_pool = [
+            m for m in filtered_hard_monsters
+            if m["name"] != self.starting_monster["name"]
+            and m["name"] != self.goal_monster["name"]
+        ]
+
+        easy_count = 0
+        medium_count = 0
+        hard_count = 0
+        total_count = 0
+
+        while total_count < n - 2:
+            if hard_count != len(hard_rest_pool):
+                hard_count += 1
+                total_count += 1
+                if total_count == n-2:
+                    break
+
+            if medium_count != len(medium_rest_pool):
+                medium_count += 1
+                total_count += 1
+                if total_count == n-2:
+                    break
+
+            if easy_count != len(easy_rest_pool):
+                easy_count += 1
+                total_count += 1
+                if total_count == n-2:
+                    break
+
+        self.easy_seed_monsters = self.random.sample(easy_rest_pool, easy_count)
+        self.medium_seed_monsters = self.random.sample(medium_rest_pool, medium_count)
+        self.hard_seed_monsters = self.random.sample(hard_rest_pool, hard_count)
+
+        self.seed_monsters = [self.starting_monster, self.goal_monster] + self.easy_seed_monsters +\
+                              self.medium_seed_monsters + self.hard_seed_monsters
 
         # Handle resolving weapons if weapons are randomized
         if bool(self.options.include_weapons.value):
             # Get the allowed weapons in the weapon pool
             allowed_weapon_names = set(self.options.weapon_pool.value)
             if not allowed_weapon_names:
-                logging.warning("weapon_pool was empty, defaulting to all weapons")
+                logging.warning("[MHRise] weapon_pool was empty, defaulting to all weapons")
                 allowed_weapon_names = {w["name"] for w in WEAPONS}
             self.weapon_pool = [
                 w for w in WEAPONS if w["name"] in allowed_weapon_names
@@ -244,7 +299,7 @@ class MHRiseWorld(World):
         if self.options.quest_rando_pool.value == QuestRandoPool.option_quest_rando_sunbreak \
          and not bool(self.options.include_sunbreak):
             self.options.quest_rando_pool.value = QuestRandoPool.option_quest_rando_hub
-            logging.warning("Sunbreak quest pool selected with Sunbreak content disabled. Defaulting to base game hub quests.")
+            logging.warning("[MHRise] Sunbreak quest pool selected with Sunbreak content disabled. Defaulting to base game hub quests.")
 
         # Set quest pool, goal, and starter quests for hub
         if self.options.quest_rando_pool.value == QuestRandoPool.option_quest_rando_hub:
@@ -436,7 +491,7 @@ class MHRiseWorld(World):
             # Get the allowed weapons in the weapon pool
             allowed_weapon_names = set(self.options.weapon_pool.value)
             if not allowed_weapon_names:
-                logging.warning("weapon_pool was empty, defaulting to all weapons")
+                logging.warning("[MHRise] weapon_pool was empty, defaulting to all weapons")
                 allowed_weapon_names = {w["name"] for w in WEAPONS}
             self.weapon_pool = [
                 w for w in WEAPONS if w["name"] in allowed_weapon_names
@@ -619,6 +674,12 @@ class MHRiseWorld(World):
                 items.license_item_name(m): m["em_type"]
                 for m in self.seed_monsters
             }
+
+            # In order for the client to keep track of the huntathon regional access,
+            # it needs to be able to check which licenses are in each region
+            # We gather that data here and put it in the slot data
+            license_to_tier = {items.license_item_name(m): self._monster_to_tier(m) for m in self.seed_monsters}
+
             slot_data.update({
                 "monster_em_type_map": em_type_map,
                 "include_sunbreak": bool(self.options.include_sunbreak.value),
@@ -626,6 +687,7 @@ class MHRiseWorld(World):
                 "goal_monster": self.goal_monster["name"],
                 "include_weapons": bool(self.options.include_weapons.value),
                 "monster_count": len(self.seed_monsters),
+                "license_to_tier": license_to_tier
             })
             if bool(self.options.include_weapons.value):
                 slot_data["weapon_type_to_item_name"] = {
@@ -652,3 +714,32 @@ class MHRiseWorld(World):
         if "risen" in monster["tags"] and not bool(self.options.include_risen.value):
             return False
         return True
+
+    def _split_monsters_by_tier(self, available: list):
+        filtered_easy_monsters = []
+        filtered_medium_monsters = []
+        filtered_hard_monsters = []
+
+        for monster in available:
+            if monster["name"] in EASY_MONSTERS:
+                self.filtered_easy_monsters.append(monster)
+            elif monster["name"] in MEDIUM_MONSTERS:
+                self.filtered_medium_monsters.append(monster)
+            elif monster["name"] in HARD_MONSTERS:
+                self.filtered_hard_monsters.append(monster)
+            else:
+                logging.warning(f"[MHRise] Uncategorized monster {monster["name"]} in available pool")
+
+        return filtered_easy_monsters, filtered_medium_monsters, filtered_hard_monsters
+
+    def _monster_to_tier(self, monster: dict) -> str:
+        if monster in self.easy_seed_monsters:
+            return "easy"
+        elif monster in self.medium_seed_monsters:
+            return "medium"
+        elif monster in self.hard_seed_monsters:
+            return "hard"
+        elif monster == self.starting_monster:
+            return "start"
+        else:
+            return "goal"

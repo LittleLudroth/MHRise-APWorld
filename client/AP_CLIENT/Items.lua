@@ -14,6 +14,12 @@ Items.held = {}
 
 Items.has_victory = false
 
+Items.reached_medium = false
+Items.reached_hard = false
+Items.reached_goal = false
+
+local Lookups = require("AP_CLIENT/Lookups")
+
 -- Raw item IDs that arrived before APClientPP had the data package
 -- ready to resolve them to names. The very first on_items_received
 -- batch on a freshly-opened socket (which is where precollected items
@@ -137,6 +143,42 @@ function Items.Receive(items, ap_client, silent)
     if deferred > 0 then
         log.info(string.format(
             "[Items] %d item(s) deferred pending data package sync", deferred))
+    end
+    -- Check huntathon tier logic if needed
+    if Lookups.mode == "hunt_a_thon" then
+        local next = next
+        if next(Lookups.license_to_tier) == nil then
+            -- back-compat: we can skip checking tier status if license_to_tier is empty
+        else
+            -- Count how many items are in each tier
+            local easy = 0
+            local medium = 0
+            local hard = 0
+
+            for license,_ in pairs(Items.held) do
+                local tier = Lookups.license_to_tier[license]
+                if tier == "easy" then
+                    easy = easy + 1
+                elseif tier == "medium" then
+                    medium = medium + 1
+                elseif tier == "hard" then
+                    hard = hard + 1
+                end
+            end
+
+            -- Check if player has reached each tier
+            if not Items.reached_medium then
+                Items.reached_medium = easy >= math.ceil(Lookups.easy_monster_count / 2)
+            end
+
+            if Items.reached_medium and not Items.reached_hard then
+                Items.reached_hard = medium >= math.ceil(Lookups.medium_monster_count / 2)
+            end
+
+            if Items.reached_hard and not Items.reached_goal then
+                Items.reached_goal = hard >= math.ceil(Lookups.hard_monster_count / 2)
+            end
+        end
     end
     return count
 end

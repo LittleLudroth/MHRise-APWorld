@@ -194,7 +194,6 @@ local function apply_swap_to_param(param, em_types, quest_no)
     end
     -- Modification varies by quest type
     -- Handle single target quests
-    -- TODO: Finish adding quest modifications for multitarget quests
     if # em_types == 1 then
         local ok_boss = pcall(function() boss:call("Set", 0, em_types[1]) end)
         local ok_tgt = pcall(function() tgt:call("Set", 0, em_types[1]) end)

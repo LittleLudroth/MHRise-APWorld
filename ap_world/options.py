@@ -46,10 +46,12 @@ class Mode(Choice):
 
     - `hunt_a_thon` (default): hunting a large monster requires its
       license. Licenses are scattered across the multiworld. A random goal monster
-      is selected, and hunting that goal monster wins the game. Standard
-      hunt-for-keys loop. Requires a save file at HR 100 with the ability
-      to clear Crimson Glow Valstrax for base game, a save file at MR 10+
-      with the ability to clear P. Malzeno and Amatsu if you enable Sunbreak,
+      is selected, and hunting that goal monster wins the game. Monsters are split into
+      three tiers based on difficulty. Accessing a tier of monsters is gated by having
+      half of the previous tier unlocked or completed. Additionally, the goal monster
+      is gated by having or completing half of the highest tier of monsters. Requires
+      a save file at HR 100 with the ability to clear Crimson Glow Valstrax for base game,
+      a save file at MR 10+ with the ability to clear P. Malzeno and Amatsu if you enable Sunbreak,
       and a save file at MR 180+ with the ability to clear Risen Shagaru Magala
       for Sunbreak with Risen Elders enabled. 
     - `quest_rando`: completing a quest requires its unlock item. Unlocks
