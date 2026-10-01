@@ -81,7 +81,7 @@ class QuestRandoPool(Choice):
       are enabled — the wielded weapon's license are held. Goal =
       clearing the MR6 urgent "Proof of Courage". This option requires 
       Sunbreak, and will default to `quest_rando_hub` if sunbreak is disabled.
-      There are 119 quests in this pool.
+      There are 118 quests in this pool.
     """
     display_name = "Quest Pool"
     option_quest_rando_village = 0
@@ -93,7 +93,7 @@ class Questsanity(Toggle):
     """
     QuestRando Only: Include optional quests in the QuestRando pool.
     This option will add 3 quests to Village QuestRando,
-    26 quests to Hub QuestRando, and 59 quests to Sunbreak QuestRando
+    26 quests to Hub QuestRando, and 60 quests to Sunbreak QuestRando
     """
     display_name = "Questsanity"
 
