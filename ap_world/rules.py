@@ -33,6 +33,7 @@ from .items import (
     HUB_TIER_URGENT_QUEST_NOS,
     MR_TIER_URGENT_QUEST_NOS,
     MID_URGENT_QUEST_NOS,
+    TBA_QUEST_NUMBER,
     license_item_name,
     unlock_item_name,
 )
@@ -201,7 +202,9 @@ def set_urgent_rules(quest_id_to_quest: dict[int,dict]) -> dict:
         # over URGENT_QUEST_DATA instead of quest_pool to ensure
         # that quests in previous_urgents are always computed 
         # before they need to be referenced
-        if qn not in quest_id_to_quest:
+        # We specifically need to allow The Blue Apex, as it is not in the quest pool
+        # despite being a tier urgent.
+        if qn not in quest_id_to_quest and qn != TBA_QUEST_NUMBER:
             continue
 
         # If the urgent requires key quests, set a rule requiring that number of key quests
@@ -217,10 +220,10 @@ def set_urgent_rules(quest_id_to_quest: dict[int,dict]) -> dict:
         urgent_rule_one = urgent_to_rule[previous_urgents[0]] if previous_urgents else True_()
         urgent_rule_two = urgent_to_rule[previous_urgents[1]] if len(previous_urgents) > 1 else True_()
 
-        # All quests require their own item
-        own_rule = Has(unlock_item_name(quest_id_to_quest[qn]))
+        # All quests other than The Blue Apex require their own unlock item
+        own_rule = Has(unlock_item_name(quest_id_to_quest[qn])) if qn != TBA_QUEST_NUMBER else True_()
 
         # Store the urgent quest rule for later
         urgent_to_rule[qn] = And(key_rule, urgent_rule_one, urgent_rule_two, own_rule)
 
-    return urgent_to_rule
+    return urgent_to_rule # Always includes The Blue Apex, to ensure that hub/sunbreak quest rando will work
