@@ -234,3 +234,8 @@ OPTIONAL_QUESTS = frozenset((# Village Optionals
                              315414,315415,315416,315417,315425,315426,315427,315460,
                              315461,315500,315512,315525,315524,315561,315220,315318,
                              315429,315523,))
+
+# A frozenset of all optional gathering/small monster quests. Used to indicate whether or not
+# a quest should be included as part of questsanity_nonhunting
+# Also used to ensure that these quests are not put in quest_swaps
+OPTIONAL_NONHUNTING_QUESTS = frozenset(())

@@ -236,10 +236,6 @@ def _in_questsanity_hub_pool(quest: dict) -> bool:
     """
     if quest["quest_no"] in BANNED_QUESTS:
         return False
-    if quest["quest_no"] in OPTIONAL_QUESTS:
-        return False
-    if quest["quest_no"] == TBA_QUEST_NUMBER:
-        return True # This sucks, but TBA specifically needs to be except
     if quest["enemy_level"] != EnemyLv.Low and quest["enemy_level"] != EnemyLv.High:
         return False
     if quest["monster_bucket"] != "monster":
@@ -285,8 +281,6 @@ def _in_questsanity_mr_pool(quest: dict) -> bool:
     are excluded (gh #19), as swapping their boss makes them uncompletable.
     """
     if quest["quest_no"] in BANNED_QUESTS:
-        return False
-    if quest["quest_no"] in OPTIONAL_QUESTS:
         return False
     if quest["enemy_level"] != EnemyLv.Master:
         return False
