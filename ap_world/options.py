@@ -93,7 +93,7 @@ class Questsanity(Toggle):
     """
     QuestRando Only: Include optional quests in the QuestRando pool.
     This option will add 3 quests to Village QuestRando,
-    26 quests to Hub QuestRando, and 60 quests to Sunbreak QuestRando
+    26 quests to Hub QuestRando, and 59 quests to Sunbreak QuestRando
     """
     display_name = "Questsanity"
 
