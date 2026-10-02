@@ -156,7 +156,7 @@ local function build_sections()
     -- iterating int-keyed tables here; string keys traverse cleanly.
     for license_name, _ in pairs(Lookups.item_name_to_em_type) do
         local name = license_to_name(license_name)
-        local tier = Lookups.license_to_tier(license_name)
+        local tier = Lookups.license_to_tier[license_name]
         local can_reach_tier
         if tier == "medium" then
             can_reach_tier = Items.reached_medium

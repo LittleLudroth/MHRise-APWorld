@@ -101,7 +101,7 @@ local function on_enemy_died(em_type)
 
     -- Additionally check if we can actually reach the tier the monster is in
     -- If we cannot, don't send the check
-    local tier = Lookups.license_to_tier(item_name)
+    local tier = Lookups.license_to_tier[item_name]
     local can_reach_tier
     if tier == "medium" then
         can_reach_tier = Items.reached_medium
