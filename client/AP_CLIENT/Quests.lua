@@ -349,7 +349,7 @@ local function on_quest_cleared()
     -- uses for hunts. The wielded weapon's license must be held; the
     -- precollected starter weapon is treated as always held by
     -- Weapons.HasLicenseForCurrent().
-    if Weapons.enabled and not Weapons.HasLicenseForCurrent() then
+    if Lookups.weapons_enabled and not Weapons.HasLicenseForCurrent() then
         local wname = Weapons.GetCurrentName() or "?"
         send_chat(string.format(
             "[AP] Cleared %s but %s license not held — re-clear once licensed",

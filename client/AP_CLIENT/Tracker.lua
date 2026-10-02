@@ -15,7 +15,6 @@ local Tracker = {}
 
 local Items = require("AP_CLIENT/Items")
 local Lookups = require("AP_CLIENT/Lookups")
-local Weapons = require("AP_CLIENT/Weapons")
 
 Tracker.visible = false
 -- Per-slot check ledger: monster_name -> { ["1"] = true, ["2"] = true }.
@@ -180,7 +179,7 @@ local function build_sections()
         end
     end
 
-    if Weapons.enabled then
+    if Lookups.weapons_enabled then
         -- Identify weapon licenses by POSITIVE membership in the
         -- weapon-license name set (from slot_data) — not by exclusion.
         -- Exclusion ("anything not a monster license") wrongly swept up
@@ -188,19 +187,19 @@ local function build_sections()
         -- the precollected starter weapon (which doesn't arrive via
         -- items_received).
         local weapon_license_names = {}
-        for _, name in pairs(Weapons.weapon_type_to_item_name) do
+        for _, name in pairs(Lookups.weapon_type_to_item_name) do
             weapon_license_names[name] = true
         end
         local saw_starter = false
         for license_name, _ in pairs(Items.held) do
             if weapon_license_names[license_name] then
                 local name = license_to_name(license_name)
-                if name == Weapons.starting_weapon then saw_starter = true end
+                if name == Lookups.starting_weapon then saw_starter = true end
                 available_weapons[#available_weapons + 1] = name
             end
         end
-        if Weapons.starting_weapon and not saw_starter then
-            available_weapons[#available_weapons + 1] = Weapons.starting_weapon
+        if Lookups.starting_weapon and not saw_starter then
+            available_weapons[#available_weapons + 1] = Lookups.starting_weapon
         end
     end
 
@@ -284,22 +283,22 @@ end
 -- (gh #16). Mirrors the HuntAThon `build_sections` weapon path.
 local function build_quest_weapon_section()
     local weapons = {}
-    if not Weapons.enabled then return weapons end
+    if not Lookups.weapons_enabled then return weapons end
     -- Reverse-set of weapon-license item names for the membership test.
     local weapon_license_names = {}
-    for _, name in pairs(Weapons.weapon_type_to_item_name) do
+    for _, name in pairs(Lookups.weapon_type_to_item_name) do
         weapon_license_names[name] = true
     end
     local saw_starter = false
     for license_name, _ in pairs(Items.held) do
         if weapon_license_names[license_name] then
             local name = license_to_name(license_name)
-            if name == Weapons.starting_weapon then saw_starter = true end
+            if name == Lookups.starting_weapon then saw_starter = true end
             weapons[#weapons + 1] = name
         end
     end
-    if Weapons.starting_weapon and not saw_starter then
-        weapons[#weapons + 1] = Weapons.starting_weapon
+    if Lookups.starting_weapon and not saw_starter then
+        weapons[#weapons + 1] = Lookups.starting_weapon
     end
     table.sort(weapons)
     return weapons
@@ -352,7 +351,7 @@ function Tracker.Draw()
         if Tracker.visible then
             if Lookups.mode == "quest_rando" then
                 draw_section("Available Quests", available_quests)
-                if Weapons.enabled then
+                if Lookups.weapons_enabled then
                     draw_section("Available Weapons", quest_weapons)
                 end
                 draw_section("Inaccessible Quests", inaccessible_quests)
@@ -360,7 +359,7 @@ function Tracker.Draw()
                 draw_section("Locked Quests", locked_quests)
             else
                 draw_section("Available Monsters", available_monsters)
-                if Weapons.enabled then
+                if Lookups.weapons_enabled then
                     draw_section("Available Weapons", available_weapons)
                 end
                 draw_section("Hunted Monsters", hunted_monsters)

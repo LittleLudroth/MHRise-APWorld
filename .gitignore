@@ -25,5 +25,8 @@ QUEST.md
 ap_world/ARCHITECTURE.md
 client/ARCHITECTURE.md
 
+# Folder with dev build of client
+mhrise-client/
+
 # Folder full of text notes
 notes/

@@ -4,8 +4,7 @@
 -- resolve a hunted monster's em_type back to a license item name in O(1).
 local Lookups = {}
 
-local Weapons = require("AP_CLIENT/Weapons")
-local Utils = require("AP_CLIENT.Utilities")
+local Utils = require("AP_CLIENT/Utilities")
 
 Lookups.connected = false
 Lookups.mode = "hunt_a_thon"  -- "hunt_a_thon" | "quest_rando"
@@ -48,6 +47,11 @@ Lookups.key_to_urgent = {}   -- "key quest_no" -> unlocking Urgent quest_no
 Lookups.goal_quest = nil     -- int (quest_no)
 Lookups.starting_quest = nil -- int (quest_no)
 
+-- Weapon Fields
+Lookups.enabled = false                 -- Indicates if weapon checks are enabled
+Lookups.weapon_type_to_item_name = {}   -- weapon_type (int) -> license item name
+Lookups.starting_weapon = nil           -- Starter weapon name, for display on connect
+
 -- Deathlink flag
 -- Used to determine whether or not the client should initially send or react to deathlinks
 Lookups.death_link = false -- bool
@@ -76,11 +80,11 @@ function Lookups.Reset()
     Lookups.goal_quest = nil
     Lookups.starting_quest = nil
     Lookups.death_link = false
-    -- Reset Weapons cache too — kept on the Weapons module rather than
-    -- here so Lookups stays monster-focused, but cleared in lockstep.
-    Weapons.enabled = false
-    Weapons.weapon_type_to_item_name = {}
-    Weapons.starting_weapon = nil
+    -- Reset Weapons too. Weapon status is kept here to allow Lookups to be 
+    -- the root inport for the client. Previous structure had circular dep.
+    Lookups.weapons_enabled = false
+    Lookups.weapon_type_to_item_name = {}
+    Lookups.starting_weapon = nil
 end
 
 -- Called from the on_slot_connected callback. slot_data shape depends
@@ -223,14 +227,14 @@ function Lookups.Load(slot_data)
         -- Weapons cache (same shape as HuntAThon branch below). The
         -- weapon gate at quest-clear time reads these.
         if slot_data.include_weapons then
-            Weapons.enabled = true
+            Lookups.weapons_enabled = true
             local wmap = slot_data.weapon_type_to_item_name
             if type(wmap) == "table" then
                 for k, v in pairs(wmap) do
-                    Weapons.weapon_type_to_item_name[tostring(k)] = v
+                    Lookups.weapon_type_to_item_name[tostring(k)] = v
                 end
             end
-            Weapons.starting_weapon = slot_data.starting_weapon
+            Lookups.starting_weapon = slot_data.starting_weapon
         end
 
         Lookups.connected = true
@@ -274,17 +278,17 @@ function Lookups.Load(slot_data)
     Lookups.goal_monster = slot_data.goal_monster
 
     if slot_data.include_weapons then
-        Weapons.enabled = true
+        Lookups.weapons_enabled = true
         local wmap = slot_data.weapon_type_to_item_name
         if type(wmap) == "table" then
             -- Store with string keys (see comment on
             -- Lookups.em_type_to_item_name above for why). JSON keys
             -- arrive as strings already; just pass them through.
             for k, v in pairs(wmap) do
-                Weapons.weapon_type_to_item_name[tostring(k)] = v
+                Lookups.weapon_type_to_item_name[tostring(k)] = v
             end
         end
-        Weapons.starting_weapon = slot_data.starting_weapon
+        Lookups.starting_weapon = slot_data.starting_weapon
     end
 
     Lookups.connected = true

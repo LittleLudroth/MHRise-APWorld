@@ -120,16 +120,13 @@ tracker overlay.
 
 ## List of Monster Names
 If you want to exclude specific monsters from the randomization pool, you can refer to this list of monsters for the correct spelling and capitalization expected by the options file.
-
+### Non-Elder Dragons
+#### Base Game
 * "Rathian"
 * "Rathalos"
 * "Khezu"
 * "Basarios"
 * "Diablos"
-* "Rajang"
-* "Kushala Daora"
-* "Chameleos"
-* "Teostra"
 * "Tigrex"
 * "Nargacuga"
 * "Barioth"
@@ -149,10 +146,10 @@ If you want to exclude specific monsters from the randomization pool, you can re
 * "Somnacanth"
 * "Rakna-Kadaki"
 * "Almudron"
-* "Wind Serpent Ibushi"
 * "Goss Harag"
 * "Great Izuchi"
-* "Thunder Serpent Narwa"
+
+#### Sunbreak
 * "Daimyo Hermitaur"
 * "Shogun Ceanataur"
 * "Anjanath"
@@ -161,17 +158,12 @@ If you want to exclude specific monsters from the randomization pool, you can re
 * "Jyuratodus"
 * "Tobi-Kadachi"
 * "Bazelgeuse"
-* "Velkhana"
-* "Malzeno"
 * "Lunagaron"
 * "Garangolm"
-* "Gaismagorm"
 * "Espinas"
 * "Seregios"
 * "Astalos"
 * "Gore Magala"
-* "Shagaru Magala"
-* "Amatsu"
 * "Blood Orange Bishaten"
 * "Aurora Somnacanth"
 * "Pyre Rakna-Kadaki"
@@ -181,13 +173,31 @@ If you want to exclude specific monsters from the randomization pool, you can re
 * "Silver Rathalos"
 * "Lucent Nargacuga"
 * "Violet Mizutsune"
-* "Furious Rajang"
 * "Chaotic Gore Magala"
-* "Crimson Glow Valstrax"
 * "Scorned Magnamalo"
-* "Narwa the Allmother"
 * "Seething Bazelgeuse"
+
+### Elder Dragons
+#### Base Game
+* "Rajang"
+* "Kushala Daora"
+* "Chameleos"
+* "Teostra"
+* "Wind Serpent Ibushi"
+* "Thunder Serpent Narwa"
+
+#### Sunbreak
+* "Velkhana"
+* "Malzeno"
+* "Gaismagorm"
+* "Shagaru Magala"
+* "Amatsu"
+* "Furious Rajang"
+* "Crimson Glow Valstrax"
+* "Narwa the Allmother"
 * "Primordial Malzeno"
+
+#### Risen
 * "Risen Kushala Daora"
 * "Risen Chameleos"
 * "Risen Teostra"

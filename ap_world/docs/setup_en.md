@@ -106,6 +106,8 @@ Rise" YAML. The available options are:
   monsters and gates quest-clear checks (see below).
 - `QuestRandoPool` (default `village`) — **`quest_rando` only.** the pool of quests which `quest_rando` will use. There is a pool for village quests, hub quests, and sunbreak quests.
 - `Questsanity` (default off) — **`quest_rando` only.** include optional quests in quest pool
+- `StartingMonsters` — **`hunt_a_thon` only.** select which monsters can be the starting monster. Leave as "Random" to allow any non-elder dragon.
+- `GoalMonsters` — **`hunt_a_thon` only.** select which elder dragons can be the goal. Leave as "Random" to allow any elder dragon.
 - `IncludeSunbreak` (default on) — include Sunbreak monsters.
 - `IncludeRisen` (default off) — include the five Risen elder dragons.
 - `IncludeWeapons` (default on) — add weapon-type licenses to the pool

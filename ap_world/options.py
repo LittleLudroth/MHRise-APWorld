@@ -12,6 +12,8 @@ Options that apply per mode:
   master rank QuestRando
 - Questsanity: QuestRando only — select whether or not QuestRando
   includes optional quests.
+- StartingMonsters: HuntAThon only — select the starting monster. Cannot be an elder dragon.
+- GoalMonsters: HuntAThon only — select which elder dragon should be the goal.
 - IncludeSunbreak: both modes.
 - IncludeRisen: HuntAThon only (no Risen variant currently appears in
   any vanilla quest, so a no-op in QuestRando — wired anyway).
@@ -102,6 +104,28 @@ class Questsanity(Toggle):
     26 quests to Hub QuestRando, and 60 quests to Sunbreak QuestRando
     """
     display_name = "Questsanity"
+
+class StartingMonsters(OptionSet):
+    """
+    Huntathon Only: Select which monsters can be the starting monster.
+    Cannot include elder dragons or rajang to avoid overlap with the goal monster.
+    See the game info document for a full list of expected monster names.
+    Leave this option as "Random" to allow any starting monster.
+    """
+    display_name = "Starting Monsters"
+    valid_keys = set([m["name"] for m in MONSTERS if "elder-dragon" not in m["tags"]]).union(set(["Random"]))
+    default = set(["Random"])
+
+class GoalMonsters(OptionSet):
+    """
+    Huntathon Only: Select which monsters can be the goal monster.
+    The goal monster must be an elder dragon or Rajang.
+    See the game info document for a full list of expected monster names.
+    Leave this option as "Random" to allow any goal monster
+    """
+    display_name = "Goal Monsters"
+    valid_keys = set([m["name"] for m in MONSTERS if "elder-dragon" in m["tags"]]).union(set(["Random"]))
+    default = set(["Random"])
 
 class IncludeSunbreak(DefaultOnToggle):
     """Include Sunbreak monsters (and their subspecies / Risen variants) in
@@ -210,6 +234,8 @@ class MHRiseOptions(PerGameCommonOptions):
     questsanity: Questsanity
     include_sunbreak: IncludeSunbreak
     include_risen: IncludeRisen
+    starting_monsters: StartingMonsters
+    goal_monsters:GoalMonsters
     include_weapons: IncludeWeapons
     weapon_pool: WeaponPool
     starting_weapons: StartingWeapons

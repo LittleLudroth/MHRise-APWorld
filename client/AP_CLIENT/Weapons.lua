@@ -10,7 +10,7 @@
 local Weapons = {}
 
 local Items = require("AP_CLIENT/Items")
-
+local Lookups = require("AP_CLIENT/Lookups")
 -- Display names indexed by snow.player.PlayerWeaponType enum value
 -- (stored as STRING keys — REFramework's Lua VM has been observed to
 -- behave inconsistently with int-keyed tables; string keys sidestep
@@ -34,17 +34,6 @@ Weapons.NAMES = {
     ["12"] = "Insect Glaive",
     ["13"] = "Bow",
 }
-
--- Set true on slot_connected when slot_data carries `include_weapons: true`.
--- When false, HasLicenseForCurrent is not consulted by the hunt gate.
-Weapons.enabled = false
-
--- weapon_type (int) -> license item name (e.g. "Great Sword License").
--- Populated from slot_data on connect.
-Weapons.weapon_type_to_item_name = {}
-
--- Starter weapon name, for chat announcement on connect. Display only.
-Weapons.starting_weapon = nil
 
 -- Returns the integer weapon-type enum for the current master player, or
 -- nil if not in a state where the player exists (title screen, loading).
@@ -71,7 +60,7 @@ function Weapons.HasLicenseForCurrent()
     local id = Weapons.GetCurrent()
     if not id then return true end
     local key = tostring(id)
-    local license_name = Weapons.weapon_type_to_item_name[key]
+    local license_name = Lookups.weapon_type_to_item_name[key]
     if not license_name then
         -- No mapping for this weapon type (shouldn't happen if slot_data
         -- shipped correctly). Fail-open.
@@ -79,7 +68,7 @@ function Weapons.HasLicenseForCurrent()
     end
     -- Starter weapon is precollected — treat as always held, mirroring
     -- how the monster gate treats the starter monster.
-    if Weapons.starting_weapon and Weapons.NAMES[key] == Weapons.starting_weapon then
+    if Lookups.starting_weapon and Weapons.NAMES[key] == Lookups.starting_weapon then
         return true
     end
     return Items.Has(license_name)

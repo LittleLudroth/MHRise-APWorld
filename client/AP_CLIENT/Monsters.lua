@@ -123,7 +123,7 @@ local function on_enemy_died(em_type)
     -- Weapon gate (when enabled). Same soft-gate model as the monster
     -- gate above: the player can fight, but the check only sends if they
     -- hold the license for their currently-equipped weapon.
-    if Weapons.enabled and not Weapons.HasLicenseForCurrent() then
+    if Lookups.weapons_enabled and not Weapons.HasLicenseForCurrent() then
         local wname = Weapons.GetCurrentName() or "?"
         log.info(string.format("[Monsters] skipped check (no license for %s)", wname))
         return
