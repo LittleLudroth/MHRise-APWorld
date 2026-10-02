@@ -148,12 +148,16 @@ class MHRiseWorld(World):
 
         filtered_easy_monsters, filtered_medium_monsters, filtered_hard_monsters = self._split_monsters_by_tier(available)
 
+        # Remove any monsters excluded in Excluded Monsters from starting and goal pools
+        starting_monster_candidates = self.options.starting_monsters.value.intersection(set(available))
+        goal_monster_candidates = self.options.goal_monsters.value.intersection(set(available))
+
         # If player did not select a subset of monsters to start with,
         # pick starter first from the lowest difficulty pool, then goal from
         # the elder-dragons (minus starter, in case the starter happens
         # to be one). This way both are guaranteed to land in
         # seed_monsters regardless of how the random sample falls.
-        if "Random" in self.options.starting_monsters.value or len(self.options.starting_monsters.value) == 0:
+        if "Random" in self.options.starting_monsters.value or len(starting_monster_candidates) == 0:
             if filtered_easy_monsters:
                 self.starting_monster = self.random.choice(filtered_easy_monsters)
             elif filtered_medium_monsters:
@@ -162,7 +166,7 @@ class MHRiseWorld(World):
                 self.starting_monster = self.random.choice(filtered_hard_monsters)
         else:
             # Convert option set into a sorted list for consistency within a seed
-            starter_candidate_names = sorted(self.options.starting_monsters.value)
+            starter_candidate_names = sorted(starting_monster_candidates)
 
             # Pick a starting monster and get the full value from MONSTERS
             starter_name = self.random.choice(starter_candidate_names)
@@ -172,7 +176,7 @@ class MHRiseWorld(World):
                     break
 
         # If player did not select a subset of goal monsters, pick a random goal
-        if "Random" in self.options.goal_monsters.value or len(self.options.goal_monsters.value) == 0:
+        if "Random" in self.options.goal_monsters.value or len(goal_monster_candidates) == 0:
             elder_dragon_candidates = [
                 m for m in available
                 if "elder-dragon" in m["tags"]
@@ -187,7 +191,7 @@ class MHRiseWorld(World):
         # Otherwise, pick a goal monster from the set of selected options
         else:
             # Convert option set into a sorted list for consistency within a seed
-            goal_candidate_names = sorted(self.options.goal_monsters.value)
+            goal_candidate_names = sorted(goal_monster_candidates)
 
             # Pick a goal monster and get its data from MONSTERS
             goal_name = self.random.choice(goal_candidate_names)
