@@ -133,7 +133,7 @@ def _create_locations_huntathon(world: MHRiseWorld) -> None:
     medium_location_map: dict[str, int] = {}
     hard_location_map: dict[str, int] = {}
     for monster in world.seed_monsters:
-        if monster["name"] in EASY_MONSTERS:
+        if monster["name"] in EASY_MONSTERS or monster == world.starting_monster:
             for name in hunt_location_names(monster):
                 easy_location_map[name] = LOCATION_NAME_TO_ID[name]
         elif monster["name"] in MEDIUM_MONSTERS:

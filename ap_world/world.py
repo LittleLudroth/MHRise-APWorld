@@ -149,8 +149,9 @@ class MHRiseWorld(World):
         filtered_easy_monsters, filtered_medium_monsters, filtered_hard_monsters = self._split_monsters_by_tier(available)
 
         # Remove any monsters excluded in Excluded Monsters from starting and goal pools
-        starting_monster_candidates = self.options.starting_monsters.value.intersection(set(available))
-        goal_monster_candidates = self.options.goal_monsters.value.intersection(set(available))
+        available_names = set([m["name"] for m in available])
+        starting_monster_candidates = self.options.starting_monsters.value.intersection(available_names)
+        goal_monster_candidates = self.options.goal_monsters.value.intersection(available_names)
 
         # If player did not select a subset of monsters to start with,
         # pick starter first from the lowest difficulty pool, then goal from
