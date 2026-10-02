@@ -79,7 +79,7 @@ class QuestRandoPool(Choice):
       randomly swapped (within per-map compatibility). Clearing a quest sends
       AP checks when the matching `Unlock: <quest>` and — if weapons
       are enabled — the wielded weapon's license are held. Goal =
-      clearing the 7* urgent "Serpent Goddess of Thunder". There are 60 quests
+      clearing the 7* urgent "Serpent Goddess of Thunder". There are 59 quests
       in this pool.
     - `quest_rando_sunbreak`: each hub and master rank quest's boss monster
       is randomly swapped (within per-map compatibility). Clearing a quest
@@ -178,6 +178,7 @@ class ExcludedMonsters(OptionSet):
     excluding monsters will also reduce the maximum size of the huntathon pool.
     If you exclude all monsters in a biome, questrando will use default quest monsters in that biome.
     Leave empty to keep the entire monster pool.
+    You can find a list of monster names as expected by this option in the game's info document.
     """
 
     display_name = "Excluded Monsters"

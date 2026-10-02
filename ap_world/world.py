@@ -722,11 +722,11 @@ class MHRiseWorld(World):
 
         for monster in available:
             if monster["name"] in EASY_MONSTERS:
-                self.filtered_easy_monsters.append(monster)
+                filtered_easy_monsters.append(monster)
             elif monster["name"] in MEDIUM_MONSTERS:
-                self.filtered_medium_monsters.append(monster)
+                filtered_medium_monsters.append(monster)
             elif monster["name"] in HARD_MONSTERS:
-                self.filtered_hard_monsters.append(monster)
+                filtered_hard_monsters.append(monster)
             else:
                 logging.warning(f"[MHRise] Uncategorized monster {monster["name"]} in available pool")
 

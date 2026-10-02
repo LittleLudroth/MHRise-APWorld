@@ -75,20 +75,23 @@ def _set_rules_huntathon(world: MHRiseWorld) -> None:
     from .regions import HUNTATHON_ENTRANCES
 
     # Get the entrances for medium and hard monsters
-    medium_entrance = world.get_entrance(HUNTATHON_ENTRANCES[1])
-    hard_entrance = world.get_entrance(HUNTATHON_ENTRANCES[2])
+    medium_entrance = world.get_entrance(HUNTATHON_ENTRANCES[0])
+    hard_entrance = world.get_entrance(HUNTATHON_ENTRANCES[1])
 
     # Require half of the unlocks for monsters in previous tier
     medium_rule = HasFromList(count=ceil(len(world.easy_seed_monsters) / 2),
-                               *[license_item_name(m) for m in world.easy_seed_monsters])
+                    *[license_item_name(m) for m in world.easy_seed_monsters])\
+                     if len(world.easy_seed_monsters) != 0 else True_()
     world.set_rule(medium_entrance, medium_rule)
 
     hard_rule = HasFromList(count=ceil(len(world.medium_seed_monsters) / 2),
-                             *[license_item_name(m) for m in world.medium_seed_monsters])
+                             *[license_item_name(m) for m in world.medium_seed_monsters])\
+                              if len(world.medium_seed_monsters) != 0 else True_()
     world.set_rule(hard_entrance, hard_rule)
 
     goal_rule = HasFromList(count=ceil(len(world.hard_seed_monsters) / 2),
-                             *[license_item_name(m) for m in world.hard_seed_monsters])
+                             *[license_item_name(m) for m in world.hard_seed_monsters])\
+                              if len(world.hard_seed_monsters) != 0 else True_()
 
     # Apply license requirement to every monster, and apply goal rule to final monster
     for monster in world.seed_monsters:
