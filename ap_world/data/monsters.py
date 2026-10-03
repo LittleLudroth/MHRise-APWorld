@@ -118,7 +118,7 @@ SUNBREAK_MONSTERS: tuple[dict[str, Any], ...] = (
     # Risen elder dragons (Anomaly Investigation endgame)
     {"name": "Risen Kushala Daora",          "em_type": 2072, "enum_name": "EmType024_08", "dlc": "sunbreak", "tags": ["risen", "elder-dragon"]},
     {"name": "Risen Chameleos",              "em_type": 2073, "enum_name": "EmType025_08", "dlc": "sunbreak", "tags": ["risen", "elder-dragon"]},
-    {"name": "Risen Teostra",                "em_type": 2075, "enum_name": "EmType027_08", "dlc": "sunbreak", "tags": ["risen", "elder-dragon"]},
+    {"name": "Risen Teostra",                "em_type": 2075, "enum_name": "EmType027_08", "dlc": "sunbreak", "tags": ["risen", "elder-dragon", "non-randomizable"]},
     {"name": "Risen Shagaru Magala",         "em_type": 2120, "enum_name": "EmType072_08", "dlc": "sunbreak", "tags": ["risen", "elder-dragon"]},
     {"name": "Risen Crimson Glow Valstrax",  "em_type": 2134, "enum_name": "EmType086_08", "dlc": "sunbreak", "tags": ["risen", "elder-dragon"]},
 )
