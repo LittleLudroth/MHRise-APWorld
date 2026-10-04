@@ -237,7 +237,10 @@ def set_urgent_rules(world: MHRiseWorld, quest_id_to_quest: dict[int,dict]) -> d
         # before they need to be referenced
         # We specifically need to allow The Blue Apex, as it is not in the quest pool
         # despite being a tier urgent.
-        if qn not in quest_id_to_quest and (qn != TBA_QUEST_NUMBER and world.options.quest_rando_pool.value != 0):
+        # TODO: This is stupid, fix it when you aren't drunk
+        if qn == TBA_QUEST_NUMBER and world.options.quest_rando_pool.value != 0:
+            pass
+        elif qn not in quest_id_to_quest:
             continue
 
         # If the urgent requires key quests, set a rule requiring that number of key quests
