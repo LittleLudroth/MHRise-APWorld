@@ -125,7 +125,7 @@ def _set_rules_questrando(world: MHRiseWorld) -> None:
     """
     from .regions import VILLAGE_ENTRANCES, HUB_ENTRANCES, MASTER_ENTRANCES
     quest_id_to_quest:dict[int, dict] = {quest["quest_no"]:quest for quest in world.quest_pool}
-    urgent_rules_by_id = set_urgent_rules(quest_id_to_quest)
+    urgent_rules_by_id = set_urgent_rules(world, quest_id_to_quest)
 
     if world.options.quest_rando_pool.value == QuestRandoPool.option_quest_rando_village:
         # The origin region is always unlocked, so don't need a rule for that
@@ -219,7 +219,7 @@ def set_completion_condition(world: MHRiseWorld) -> None:
     )
 
 
-def set_urgent_rules(quest_id_to_quest: dict[int,dict]) -> dict:
+def set_urgent_rules(world: MHRiseWorld, quest_id_to_quest: dict[int,dict]) -> dict:
     """
     Create a rule set for each urgent quest
     Every urgent quest has the following rules
@@ -237,7 +237,7 @@ def set_urgent_rules(quest_id_to_quest: dict[int,dict]) -> dict:
         # before they need to be referenced
         # We specifically need to allow The Blue Apex, as it is not in the quest pool
         # despite being a tier urgent.
-        if qn not in quest_id_to_quest and qn != TBA_QUEST_NUMBER:
+        if qn not in quest_id_to_quest and (qn != TBA_QUEST_NUMBER and world.options.quest_rando_pool.value != 0):
             continue
 
         # If the urgent requires key quests, set a rule requiring that number of key quests
