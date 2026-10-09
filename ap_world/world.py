@@ -17,12 +17,12 @@ from worlds.AutoWorld import World
 from . import items, locations, regions, rules
 from . import options as mhrise_options  # rename due to a name conflict with World.options
 from .data.monsters import MONSTERS, SUNBREAK_MONSTERS
-from .data.monster_categories import EASY_MONSTERS, MEDIUM_MONSTERS, HARD_MONSTERS
+from .data.monster_categories import EASY_MONSTERS, MEDIUM_MONSTERS, HARD_MONSTERS, MASTER_RANK_ONLY_EMS
 from .data.quests import QUESTS, EnemyLv
 from .data.weapons import WEAPONS
 from .items import _in_questrando_pool, _in_questrando_hub_pool, _in_questrando_mr_pool, \
                     _in_questsanity_pool, _in_questsanity_hub_pool, _in_questsanity_mr_pool
-from .items import STARTER_QUEST_NO, TBA_QUEST_NUMBER, HUB_STARTER_QUEST_NO, SGOT_QUEST_NUMBER, POC_QUEST_NUMBER
+from .items import STARTER_QUEST_NO, HUB_STARTER_QUEST_NO
 from .options import Mode, QuestRandoPool
 from .web_world import MHRiseWebWorld
 
@@ -480,15 +480,19 @@ class MHRiseWorld(World):
         self.quest_swaps = {}
         if bool(self.options.randomize_quest_monsters.value):
             for quest in self.quest_pool:
-                # Completely skip the blue apex when considering swaps
-                if quest["quest_no"] == TBA_QUEST_NUMBER:
-                    continue
                 candidates = map_to_safe_ems.get(quest["map_no"])
                 if not candidates:
                     # No safe target authored for this map under
                     # current options — leave the quest vanilla
                     # rather than crash.
                     continue
+                
+                # Prevent Risen Teo or B.O. Bishaten from spawning outside of MR
+                if quest["enemy_level"] != EnemyLv.Master:
+                    for m in MASTER_RANK_ONLY_EMS:
+                        if m in candidates:
+                            candidates.remove(m)
+                    
                 if quest["two_target_quest"]:
                     # Handle the two target hunting quests in Sunbreak with same monster twice
                     # These quests have one objective for hunting 2 of a monster, so they 

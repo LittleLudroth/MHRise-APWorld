@@ -7,6 +7,10 @@ monster's first apperence in master rank. 1* and 2* quests went to easy,
 3* and 4* quests went to medium, and 5*+ quests went to hard.
 
 The file contains several sets of monster names, one for each difficulty tier
+
+This file also contains a list of monsters who's AI breaks outside of master rank.
+This list is used by quest rando to prevent these monsters from being swapped into
+lower ranks.
 """
 from __future__ import annotations
 from typing import Any
@@ -91,3 +95,8 @@ HARD_MONSTERS: frozenset[str] = frozenset(
 "Risen Shagaru Magala",
 "Risen Crimson Glow Valstrax"]
 )
+
+MASTER_RANK_ONLY_EMS: list[int] = [
+    346, # Blood Orange Bishaten
+    2075 # Risen Teostra
+]

@@ -19,7 +19,7 @@ local Deathlink = require("AP_CLIENT/Deathlink")
 -- connect against slot_data.world_version; mismatch surfaces a chat
 -- warning. Keep in sync with ap_world/archipelago.json's world_version
 -- (the release workflow's drift guard fails the build if they diverge).
-local APWORLD_VERSION = "0.4.4"
+local APWORLD_VERSION = "0.4.5"
 
 local function log_info(msg) log.info("[MHRiseAP] " .. msg) end
 

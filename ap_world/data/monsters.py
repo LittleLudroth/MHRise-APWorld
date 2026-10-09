@@ -96,7 +96,7 @@ SUNBREAK_MONSTERS: tuple[dict[str, Any], ...] = (
     {"name": "Amatsu",                 "em_type":  58, "enum_name": "EmType058_00", "dlc": "sunbreak", "tags": ["elder-dragon"]},
 
     # Subspecies / variants
-    {"name": "Blood Orange Bishaten",  "em_type": 346, "enum_name": "EmType090_01", "dlc": "sunbreak", "tags": ["non-randomizable"]},
+    {"name": "Blood Orange Bishaten",  "em_type": 346, "enum_name": "EmType090_01", "dlc": "sunbreak", "tags": []},
     {"name": "Aurora Somnacanth",      "em_type": 349, "enum_name": "EmType093_01", "dlc": "sunbreak", "tags": []},
     {"name": "Pyre Rakna-Kadaki",      "em_type": 350, "enum_name": "EmType094_01", "dlc": "sunbreak", "tags": []},
     {"name": "Magma Almudron",         "em_type": 351, "enum_name": "EmType095_01", "dlc": "sunbreak", "tags": []},
@@ -118,7 +118,7 @@ SUNBREAK_MONSTERS: tuple[dict[str, Any], ...] = (
     # Risen elder dragons (Anomaly Investigation endgame)
     {"name": "Risen Kushala Daora",          "em_type": 2072, "enum_name": "EmType024_08", "dlc": "sunbreak", "tags": ["risen", "elder-dragon"]},
     {"name": "Risen Chameleos",              "em_type": 2073, "enum_name": "EmType025_08", "dlc": "sunbreak", "tags": ["risen", "elder-dragon"]},
-    {"name": "Risen Teostra",                "em_type": 2075, "enum_name": "EmType027_08", "dlc": "sunbreak", "tags": ["risen", "elder-dragon", "non-randomizable"]},
+    {"name": "Risen Teostra",                "em_type": 2075, "enum_name": "EmType027_08", "dlc": "sunbreak", "tags": ["risen", "elder-dragon"]},
     {"name": "Risen Shagaru Magala",         "em_type": 2120, "enum_name": "EmType072_08", "dlc": "sunbreak", "tags": ["risen", "elder-dragon"]},
     {"name": "Risen Crimson Glow Valstrax",  "em_type": 2134, "enum_name": "EmType086_08", "dlc": "sunbreak", "tags": ["risen", "elder-dragon"]},
 )
