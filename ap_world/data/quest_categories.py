@@ -139,13 +139,13 @@ URGENT_QUEST_DATA: dict[int, dict[str, Any]] = {
                                315315,315313,315321,315323,315360,]
             },
     # Keep it Busy (Aurora Somnacanth)
-    315390:{"key_count":2,
+    315390:{"key_count":3,
             "key_list":[315301,315302,315303,315304,315305],
             "previous_urgents":[],
             "unlocked_quests":[315306,315307,315308,315309,315310]
             },
     # Ice Wolf, Red Moon (Lunagaron)
-    405400:{"key_count":4,
+    405400:{"key_count":6,
             "key_list":[315301,315302,315303,315304,315305,
                         315306,315307,315308,315309,315310],
             "previous_urgents":[315390],

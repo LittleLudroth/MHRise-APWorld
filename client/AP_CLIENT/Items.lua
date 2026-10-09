@@ -18,6 +18,7 @@ Items.reached_medium = false
 Items.reached_hard = false
 Items.reached_goal = false
 
+Items.last_index = 0
 local Lookups = require("AP_CLIENT/Lookups")
 
 -- Raw item IDs that arrived before APClientPP had the data package
@@ -34,6 +35,10 @@ Items.pending_ids = {}
 function Items.Reset()
     Items.held = {}
     Items.has_victory = false
+    Items.reached_medium = false
+    Items.reached_hard = false
+    Items.reached_goal = false
+    Items.last_index = 0
     Items.pending_ids = {}
 end
 
