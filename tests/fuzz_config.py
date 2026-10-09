@@ -20,18 +20,26 @@ import yaml
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_REPO_ROOT / "ap_world" / "data"))
 from weapons import WEAPONS  # noqa: E402
+from monsters import MONSTERS
 
 WEAPON_NAMES = [w["name"] for w in WEAPONS]
 GAME_NAME = "Monster Hunter Rise"
 
 DEFAULT_CONFIG: dict[str, Any] = {
     "mode": "hunt_a_thon",
+    "quest_rando_pool": "quest_rando_village",
+    "questsanity": False,
     "include_sunbreak": True,
     "include_risen": False,
+    "starting_monsters": ["Random"],
+    "goal_monsters": ["Random"],
     "include_weapons": True,
     "weapon_pool": list(WEAPON_NAMES),
+    "starting_weapons": ["Random"],
     "randomize_quest_monsters": True,
+    "excluded_monsters": [],
     "monster_count": 15,
+    "deathlink": False,
 }
 
 QUEST_RANDO_CONFIG: dict[str, Any] = {
@@ -42,21 +50,57 @@ QUEST_RANDO_CONFIG: dict[str, Any] = {
 
 def random_config(rng: random.Random) -> dict[str, Any]:
     mode = rng.choice(["hunt_a_thon", "quest_rando"])
+    quest_rando_pool = rng.choice(["quest_rando_village", "quest_rando_hub", "quest_rando_sunbreak"])
     include_weapons = rng.random() < 0.7
     if include_weapons:
         pool_size = rng.randint(1, len(WEAPON_NAMES))
         weapon_pool = rng.sample(WEAPON_NAMES, pool_size)
+        starting_weapons_count = rng.randint(0, len(weapon_pool))
+        starting_weapons = rng.sample(weapon_pool, starting_weapons_count)
+        if not starting_weapons:
+            starting_weapons = ["Random"]
     else:
         weapon_pool = list(WEAPON_NAMES)
+        starting_weapons = ["Random"]
 
+    starting_monster_candidates = [m["name"] for m in MONSTERS if "elder-dragon" not in m["tags"]]
+    goal_monster_candidates = [m["name"] for m in MONSTERS if "elder-dragon" in m["tags"]]
+
+    if rng.random() < 0.5 and len(starting_monster_candidates) > 1:
+        starting_monster_count = rng.randint(1, len(starting_monster_candidates))
+        starting_monsters = rng.sample(starting_monster_candidates, starting_monster_count)
+    else:
+        starting_monsters = ["Random"]
+
+    if rng.random() < 0.5 and len(goal_monster_candidates) > 1:
+        goal_monster_count = rng.randint(1, len(goal_monster_candidates))
+        goal_monsters = rng.sample(goal_monster_candidates, goal_monster_count)
+    else:
+        goal_monsters = ["Random"]
+
+    if rng.random() < 0.3:
+        # There are possible configurations that break huntathon
+        # This is fine, I don't want to add safeguards to ensure an elder dragon is always available
+        # I am specifically capping the exclude pool at n-6 to reduce how often this happens
+        excluded_monster_count = rng.randint(1, len(MONSTERS) - 6)
+        excluded_monsters = rng.sample([m["name"] for m in MONSTERS], excluded_monster_count)
+    else:
+        excluded_monsters = []
     return {
         "mode": mode,
+        "quest_rando_pool": quest_rando_pool,
+        "questsanity": rng.random() < 0.3,
         "include_sunbreak": rng.random() < 0.7,
         "include_risen": rng.random() < 0.3,
+        "starting_monsters": starting_monsters,
+        "goal_monsters": goal_monsters,
         "include_weapons": include_weapons,
         "weapon_pool": weapon_pool,
+        "starting_weapons": starting_weapons,
         "randomize_quest_monsters": rng.random() < 0.7,
+        "excluded_monsters": excluded_monsters,
         "monster_count": rng.randint(3, 72),
+        "deathlink": rng.random() < 0.5,
     }
 
 
