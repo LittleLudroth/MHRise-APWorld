@@ -249,7 +249,22 @@ local function build_quest_sections()
         return v
     end
     for qn_str, _ in pairs(Lookups.quest_locations) do
-        local display = Lookups.quest_names[qn_str] or qn_str
+        -- Get quest and enemy levels to annotate quests with rank
+        local quest_level
+        local enemy_level
+        if Lookups.enemy_levels[qn_str] == 0 then
+            enemy_level = "V"
+        elseif Lookups.enemy_levels[qn_str] == 1 then
+            enemy_level = "LR"
+        elseif Lookups.enemy_levels[qn_str] == 2 then
+            enemy_level = "HR"
+        else
+            enemy_level = "MR"
+        end
+
+        quest_level = tostring(Lookups.quest_levels[qn_str] + 1)
+
+        local display =  enemy_level .. quest_level .. ": " .. (Lookups.quest_names[qn_str] or qn_str)
         if is_fully_cleared(qn_str) then
             local fought = Lookups.quest_swap_names[qn_str]
             if fought then

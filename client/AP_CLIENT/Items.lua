@@ -18,6 +18,8 @@ Items.reached_medium = false
 Items.reached_hard = false
 Items.reached_goal = false
 
+local PlayerManager
+
 Items.last_index = 0
 local Lookups = require("AP_CLIENT/Lookups")
 
@@ -125,6 +127,8 @@ end
 -- chat doesn't get flooded with one "[AP] Received: X" per held item.
 function Items.Receive(items, ap_client, silent)
     if type(items) ~= "table" then return 0 end
+    -- Get the player manager if not already defined.
+    if not PlayerManager then PlayerManager = sdk.get_managed_singleton("snow.player.PlayerManager") end
     -- Retry any leftover ids before processing the new batch — a fresh
     -- batch can mean the data package just synced.
     Items.ResolvePending(ap_client, silent)
@@ -186,6 +190,55 @@ function Items.Receive(items, ap_client, silent)
         end
     end
     return count
+end
+
+-- These functions implement the effects of the various filler items and traps in the mod
+-- They are instant effects and should only trigger once per filler item
+-- Any function other than Emote Trap will fizzle if activated outside of a hunt
+
+-- This function gets the player's max hp and sets their current health to that value
+-- It returns false if heal fails for any reason
+function Items.TriggerHeal()
+    local masterPlayer = PlayerManager:call("findMasterPlayer")
+    if not masterPlayer then return false end
+
+    local player_data = masterPlayer:call("get_PlayerData")
+    if not player_data then return false end
+    
+    local health = player_data:get_field("_vitalMax") * 1.
+    if health == nil then return false end
+
+    player_data:call("setVital(System.Single)", health)
+    player_data:set_field("_r_Vital", health)
+    return true
+end
+
+function Items.TriggerBirds()
+
+end
+
+function Items.TriggerBuff()
+
+end
+
+function Items.TriggerStaminaRefill()
+
+end
+
+function Items.TriggerDullTrap()
+
+end
+
+function Items.TriggerStatusTrap()
+
+end
+
+function Items.TriggerDebuffTrap()
+
+end
+
+function Items.TriggerEmoteTrap()
+
 end
 
 return Items
