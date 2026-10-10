@@ -264,7 +264,7 @@ local function build_quest_sections()
 
         quest_level = tostring(Lookups.quest_levels[qn_str] + 1)
 
-        local display = quest_level .. enemy_level .. ": " .. (Lookups.quest_names[qn_str] or qn_str)
+        local display =  enemy_level .. quest_level .. ": " .. (Lookups.quest_names[qn_str] or qn_str)
         if is_fully_cleared(qn_str) then
             local fought = Lookups.quest_swap_names[qn_str]
             if fought then
