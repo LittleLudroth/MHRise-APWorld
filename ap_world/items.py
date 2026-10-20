@@ -34,7 +34,8 @@ ID layout:
        order). Parked alongside the existing fixed-id items so they
        don't collide with the monster range or the future Apex/Small
        reservations.
-- 9999: Poogie (filler).
+- 9999: Poogie (no effect filler)
+- 10000..10999: Filler Items and Traps
 
 The Lua client receives the EmType / quest-id maps via slot_data on
 connect, so it never needs to read the master tables from disk.
@@ -332,12 +333,15 @@ QUESTSANITY_MR_QUESTS: tuple[dict, ...] = tuple(
 # nothing imports it directly. Currently used by locations.py.
 VILLAGE_QUESTS: tuple[dict, ...] = QUESTSANITY_VILLAGE_QUESTS
 
-FILLER_ITEM_NAME = "Poogie"
+DEFAULT_FILLER_ITEM = "Poogie"
+FILLER_ITEM_NAMES = ["Full Heal", "Free Birds", "Random Buff"]
+TRAP_ITEM_NAMES = ["Dull Trap", "Status Trap", "Debuff Trap"]
 
 WEAPON_LICENSE_ID_BASE = 9100
 QUEST_UNLOCK_ID_BASE = 2000
 HUB_QUEST_UNLOCK_ID_BASE = 3000
 MR_QUEST_UNLOCK_ID_BASE = 4000
+FILLER_ITEM_ID_BASE = 10000
 
 
 def quest_display_name(quest: dict) -> str:
@@ -382,10 +386,14 @@ for _i, _quest in enumerate(QUESTSANITY_MR_QUESTS):
     assert _name not in ITEM_NAME_TO_ID, f"duplicate unlock item name {_name}"
     ITEM_NAME_TO_ID[_name] = _id
 
-
+for _i, _item in enumerate(FILLER_ITEM_NAMES + TRAP_ITEM_NAMES):
+    _id = FILLER_ITEM_ID_BASE + _i
+    assert _id > 10999, "Filler Items overflowed reserved range"
+    assert _item not in ITEM_NAME_TO_ID, f"duplicate filler item name {_item}"
+    ITEM_NAME_TO_ID[_item] = _id
 
 ITEM_NAME_TO_ID["Victory"] = 9001
-ITEM_NAME_TO_ID[FILLER_ITEM_NAME] = 9999
+ITEM_NAME_TO_ID[DEFAULT_FILLER_ITEM] = 9999
 
 for _i, _weapon in enumerate(WEAPONS):
     _name = f"{_weapon['name']} License"
@@ -418,8 +426,10 @@ _WEAPON_LICENSE_NAMES = frozenset(weapon_license_item_name(w) for w in WEAPONS)
 
 
 def create_item_with_correct_classification(world: MHRiseWorld, name: str) -> MHRiseItem:
-    if name == FILLER_ITEM_NAME:
+    if name in FILLER_ITEM_NAMES or name == DEFAULT_FILLER_ITEM:
         classification = ItemClassification.filler
+    elif name in TRAP_ITEM_NAMES:
+        classification = ItemClassification.trap
     elif name == "Victory":
         # Skip-balancing on the goal item — receiving it ends the run,
         # so AP's progression balancer pulling it forward to relieve
@@ -459,33 +469,37 @@ def create_item_with_correct_classification(world: MHRiseWorld, name: str) -> MH
     return MHRiseItem(name, classification, ITEM_NAME_TO_ID[name], world.player)
 
 
-def get_filler_item_name() -> str:
+def get_filler_item_name(world: MHRiseWorld) -> str:
     """Wrapped by `MHRiseWorld.get_filler_item_name(self)`. Called by AP
     whenever it needs an extra filler item — e.g. when the item pool is
     short relative to location count, or for plando."""
-    return FILLER_ITEM_NAME
+    if world.random.randint(0,99) < world.options.trap_chance.value:
+        return world.random.choice(TRAP_ITEM_NAMES)
+    else:
+        return world.random.choice(FILLER_ITEM_NAMES)
 
 
 def place_victory(world: MHRiseWorld) -> None:
     """Lock the Victory item at the mode-appropriate goal location.
+    Also locks the other slot of the victory location to Poogie to 
+    ensure that nothing important ends up there.
 
     Runs before `create_all_items` counts unfilled locations so the goal
     slot is excluded from the filler math (locked items don't go into the
     multiworld itempool).
 
-    - HuntAThon: goal monster's (2/2) hunt location.
-    - QuestRando: Comeuppance's clear location.
+    - HuntAThon: goal monster's hunt location.
+    - QuestRando: goal quest's clear location.
     """
     if world.options.mode.value == Mode.option_quest_rando:
         from .locations import quest_clear_location_names
-
-        goal_loc_name = quest_clear_location_names(world.goal_quest)[1]  # (2/2)
+        loc_names = quest_clear_location_names(world.goal_quest)
     else:
         from .locations import hunt_location_names
+        loc_names = hunt_location_names(world.goal_monster)
 
-        goal_loc_name = hunt_location_names(world.goal_monster)[1]  # (2/2)
-    location = world.get_location(goal_loc_name)
-    location.place_locked_item(create_item_with_correct_classification(world, "Victory"))
+    goal_location = world.get_location(loc_names[1])
+    goal_location.place_locked_item(create_item_with_correct_classification(world, "Victory"))
 
 
 def create_all_items(world: MHRiseWorld) -> None:
@@ -511,12 +525,12 @@ def _create_items_huntathon(world: MHRiseWorld) -> None:
       1. The starter weapon license (precollected if weapons enabled).
       2. Up to (spare - 1) random non-starter weapon licenses (if
          weapons enabled), capped at 13. The (spare - 1) cap reserves
-         at least one slot for Poogie filler so AP's excluded-location
+         at least one slot for filler so AP's excluded-location
          fill has something to draw from — the goal monster's two
          hunt locations are EXCLUDED (see locations.py), and AP's
          excluded fill only consumes filler items (not `useful` like
          weapon licenses, not `progression` like monster licenses).
-      3. Poogie filler for any leftover slots.
+      3. filler for any leftover slots.
 
     Spare ≥ 3 is guaranteed by the option floor of monster_count=3.
     """
@@ -573,7 +587,7 @@ def _create_items_huntathon(world: MHRiseWorld) -> None:
 
     # Poogie filler mops up any leftover slots.
     for _ in range(spare):
-        itempool.append(create_item_with_correct_classification(world, FILLER_ITEM_NAME))
+        itempool.append(create_item_with_correct_classification(world, world.get_filler_item_name()))
 
     world.multiworld.itempool += itempool
     for item in precollected:
@@ -599,7 +613,7 @@ def _create_items_questrando(world: MHRiseWorld) -> None:
            for AP's excluded-location fill (goal Clear (1/2) is
            EXCLUDED — weapon licenses are `useful`, not filler, so
            excluded fill rejects them).
-        3. Poogie filler for leftover slots.
+        3. filler for leftover slots.
     """
     place_victory(world)
 
@@ -678,7 +692,7 @@ def _create_items_questrando(world: MHRiseWorld) -> None:
         spare -= len(weapons_to_add)
 
     for _ in range(spare):
-        itempool.append(create_item_with_correct_classification(world, FILLER_ITEM_NAME))
+        itempool.append(create_item_with_correct_classification(world, world.get_filler_item_name()))
 
     world.multiworld.itempool += itempool
     for item in precollected:
@@ -784,7 +798,7 @@ def _create_items_questrando_hub(world: MHRiseWorld) -> None:
         spare -= len(weapons_to_add)
 
     for _ in range(spare):
-        itempool.append(create_item_with_correct_classification(world, FILLER_ITEM_NAME))
+        itempool.append(create_item_with_correct_classification(world, world.get_filler_item_name()))
 
     world.multiworld.itempool += itempool
     for item in precollected:

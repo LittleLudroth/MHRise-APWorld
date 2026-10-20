@@ -111,16 +111,12 @@ local function apply_resolved(ap_client, name, index)
         Items.TriggerBirds()
     elseif name == "Random Buff" then
         Items.TriggerBuff()
-    elseif name == "Stamina Refill" then
-        Items.TriggerStaminaRefill()
     elseif name == "Dull Trap" then
         Items.TriggerDullTrap()
     elseif name == "Status Trap" then
         Items.TriggerStatusTrap()
     elseif name == "Debuff Trap" then
         Items.TriggerDebuffTrap()
-    elseif name == "Emote Trap" then
-        Items.TriggerEmoteTrap()
     else
         -- If item isn't a single use, it goes in held
         Items.held[name] = true
@@ -142,6 +138,7 @@ local function apply_resolved_delayed(name)
     end
 
     -- check if the item is a filler or trap
+    -- Back compat: will always pass if filler_names is empty
     if Lookups.filler_names[name] ~= nil then return false end
 
     if Items.held[name] then return false end

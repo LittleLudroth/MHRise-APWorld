@@ -30,6 +30,9 @@ Lookups.easy_monster_count = 0
 Lookups.medium_monster_count = 0
 Lookups.hard_monster_count = 0
 
+-- A list of item names that are considered filler items
+Lookups.filler_names = {}
+
 -- QuestRando fields (populated only when mode == "quest_rando").
 -- All quest_no keys are STRINGS for the same int-keyed-table reason
 -- (see Lookups.em_type_to_item_name above). JSON delivery naturally
@@ -67,6 +70,7 @@ function Lookups.Reset()
     Lookups.easy_monster_count = 0
     Lookups.medium_monster_count = 0
     Lookups.hard_monster_count = 0
+    Lookups.filler_names = {}
     Lookups.quest_pool_type = "village"
     Lookups.quest_swaps = {}
     Lookups.quest_swap_names = {}
@@ -133,6 +137,15 @@ function Lookups.Load(slot_data)
     -- set deathlink flag, default to false if not defined
     if slot_data.death_link ~= nil then
         Lookups.death_link = slot_data.death_link
+    end
+
+    -- Fill filler_names with the full list of filler items
+    -- backwards compat: Will be empty table if seed is from old apworld
+    local filler_names = slot_data.filler_names
+    if type(filler_names) == "table" then
+        for k, _ in pairs(filler_names) do
+            Lookups.filler_names[tostring(k)] = 1
+        end
     end
 
     if mode == "quest_rando" then

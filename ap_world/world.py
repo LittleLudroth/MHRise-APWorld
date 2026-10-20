@@ -565,7 +565,7 @@ class MHRiseWorld(World):
         return items.create_item_with_correct_classification(self, name)
 
     def get_filler_item_name(self) -> str:
-        return items.get_filler_item_name()
+        return items.get_filler_item_name(self)
 
     def fill_slot_data(self) -> Mapping[str, Any]:
         """Send client-side config to the in-game Lua plugin."""
@@ -579,6 +579,7 @@ class MHRiseWorld(World):
             "world_version": WORLD_VERSION,
             "mode": mode_str,
             "death_link": bool(self.options.deathlink.value),
+            "filler_names": {v:True for v in items.FILLER_ITEM_NAMES + items.TRAP_ITEM_NAMES}
         }
         if self.options.mode.value == Mode.option_quest_rando:
             # quest_no keys MUST be strings — REFramework's Lua VM

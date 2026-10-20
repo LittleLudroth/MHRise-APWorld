@@ -230,7 +230,16 @@ class Deathlink(Toggle):
     """Enable or disable deathlink. When enabled,
     a faint will count as a death. This setting can be toggled in game."""
     display_name = "Deathlink"
-
+  
+class TrapChance(Range):
+    """
+    How frequently a filler item is replaced with a trap item. Leave at 0 to disable traps.
+    """
+    display_name = "Trap Chance"
+    range_start = 0
+    range_end = 100
+    default = 0
+  
 @dataclass
 class MHRiseOptions(PerGameCommonOptions):
     mode: Mode
@@ -247,3 +256,4 @@ class MHRiseOptions(PerGameCommonOptions):
     excluded_monsters: ExcludedMonsters
     monster_count: MonsterCount
     deathlink: Deathlink
+    trap_chance: TrapChance

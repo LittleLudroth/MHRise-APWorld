@@ -35,6 +35,7 @@ class MHRiseWebWorld(WebWorld):
             mhrise_options.IncludeRisen,
             mhrise_options.ExcludedMonsters,
             mhrise_options.Deathlink,
+            mhrise_options.TrapChance,
         ]),
         OptionGroup("Huntathon Settings", [
             mhrise_options.StartingMonsters,
@@ -44,7 +45,7 @@ class MHRiseWebWorld(WebWorld):
         OptionGroup("QuestRando Settings", [
             mhrise_options.QuestRandoPool,
             mhrise_options.Questsanity,
-            mhrise_options.RandomizeQuestMonsters
+            mhrise_options.RandomizeQuestMonsters,
         ]),
         OptionGroup("Weapon Settings", [
             mhrise_options.IncludeWeapons,
