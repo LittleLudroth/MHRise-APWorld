@@ -252,14 +252,14 @@ local function build_quest_sections()
         -- Get quest and enemy levels to annotate quests with rank
         local quest_level
         local enemy_level
-        if Lookups.enemy_levels[qn_str] == 0 then
-            enemy_level = "V"
+        if Lookups.enemy_levels[qn_str] == 3 then
+            enemy_level = "MR"
         elseif Lookups.enemy_levels[qn_str] == 1 then
             enemy_level = "LR"
         elseif Lookups.enemy_levels[qn_str] == 2 then
             enemy_level = "HR"
         else
-            enemy_level = "MR"
+            enemy_level = "V"
         end
 
         quest_level = tostring(Lookups.quest_levels[qn_str] + 1)

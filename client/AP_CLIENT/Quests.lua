@@ -273,6 +273,7 @@ function Quests.ApplySwaps()
 end
 
 function Quests.ApplySwapsIfReady()
+    if Lookups.mode ~= "quest_rando" then return end
     local qm = sdk.get_managed_singleton("snow.QuestManager")
     if not qm then return end
     Quests.ApplySwaps()
@@ -304,6 +305,9 @@ local function clear_locations_for(quest_display_name)
 end
 
 local function on_quest_cleared()
+    -- Regardless of mode, remove spawned birds on quest clear
+    Items.ClearBirds()
+    
     if Lookups.mode ~= "quest_rando" then return end
     local solo, count = Session.IsSolo()
     if not solo then
@@ -396,6 +400,7 @@ end
 -- ---------------------------------------------------------------
 
 local function install_init_dict_hook()
+    if Lookups.mode ~= "quest_rando" then return true end -- This hook doen't need to be set for huntathon
     local td = sdk.find_type_definition("snow.QuestManager")
     if not td then return false, "QuestManager type not found" end
     local method = td:get_method("initQuestDataDictionary")
@@ -415,6 +420,7 @@ local function install_init_dict_hook()
     return true
 end
 
+-- NOTE: This hook is now used by both huntathon and questrando to ensure removal of spawned spiritbirds
 local function install_completion_hook()
     local td = sdk.find_type_definition("snow.QuestManager")
     if not td then return false, "QuestManager type not found" end

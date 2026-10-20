@@ -111,7 +111,6 @@ AP_REF.on_slot_connected = function(slot_data)
                 n_swaps, starter_name, goal_name)
         end
         send_chat(banner)
-        Quests.InstallHooks()
     elseif Weapons.enabled and Weapons.starting_weapon then
         send_chat(string.format("[AP] Connected. Starter: %s. Goal: %s. Weapon: %s.",
             tostring(Lookups.starting_monster),
@@ -230,6 +229,7 @@ AP_REF.on_bounced = function(msg)
 end
 
 Monsters.InstallHook()
+Quests.InstallHooks()
 Deathlink.InstallHook()
 
 re.on_frame(function()
