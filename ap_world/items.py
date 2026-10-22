@@ -388,7 +388,7 @@ for _i, _quest in enumerate(QUESTSANITY_MR_QUESTS):
 
 for _i, _item in enumerate(FILLER_ITEM_NAMES + TRAP_ITEM_NAMES):
     _id = FILLER_ITEM_ID_BASE + _i
-    assert _id > 10999, "Filler Items overflowed reserved range"
+    assert _id < 10999, "Filler Items overflowed reserved range"
     assert _item not in ITEM_NAME_TO_ID, f"duplicate filler item name {_item}"
     ITEM_NAME_TO_ID[_item] = _id
 

@@ -40,6 +40,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "excluded_monsters": [],
     "monster_count": 15,
     "deathlink": False,
+    "trap_chance": 0,
 }
 
 QUEST_RANDO_CONFIG: dict[str, Any] = {
@@ -80,12 +81,25 @@ def random_config(rng: random.Random) -> dict[str, Any]:
 
     if rng.random() < 0.3:
         # There are possible configurations that break huntathon
-        # This is fine, I don't want to add safeguards to ensure an elder dragon is always available
-        # I am specifically capping the exclude pool at n-6 to reduce how often this happens
-        excluded_monster_count = rng.randint(1, len(MONSTERS) - 6)
+        # To ensure that they don't occur, I force there to be at least one elder dragon in the pool
+        excluded_monster_count = rng.randint(1, len(MONSTERS) - 3)
         excluded_monsters = rng.sample([m["name"] for m in MONSTERS], excluded_monster_count)
+        elder_dragons = [m["name"] for m in MONSTERS if "elder-dragon" in m["tags"]]
+        flag = False
+        for m in elder_dragons:
+            if m not in excluded_monsters:
+                flag = True
+                break
+        if not flag:
+            excluded_monsters.remove(elder_dragons[0])
     else:
         excluded_monsters = []
+
+    if rng.random() < 0.3:
+        trap_chance = rng.randint(1, 100)
+    else:
+        trap_chance = 0
+
     return {
         "mode": mode,
         "quest_rando_pool": quest_rando_pool,
@@ -101,6 +115,7 @@ def random_config(rng: random.Random) -> dict[str, Any]:
         "excluded_monsters": excluded_monsters,
         "monster_count": rng.randint(3, 72),
         "deathlink": rng.random() < 0.5,
+        "trap_chance": 0
     }
 
 

@@ -36,6 +36,9 @@ local SPIRIT_BIRDS = {
     gold = 30
 }
 
+-- A display string for whatever the most recent buff/debuff/status applied was
+local last_applied = ""
+
 Items.last_index = 0
 local Lookups = require("AP_CLIENT/Lookups")
 
@@ -58,6 +61,10 @@ function Items.Reset()
     Items.reached_goal = false
     Items.last_index = 0
     Items.pending_ids = {}
+    PlayerManager = nil
+    QuestManager = nil
+    CreatureManager = nil
+    last_applied = ""
 end
 
 function Items.Has(item_name)
@@ -214,6 +221,13 @@ function Items.Receive(items, ap_client, silent)
         if name and index then
             if apply_resolved(ap_client, name, index) then
                 if not silent then send_chat("[AP] Received: " .. name) end
+                if not silent and name == "Random Buff" and last_applied ~= "" then
+                    send_chat("Applied buff: " .. last_applied) end
+                if not silent and name == "Debuff Trap" and last_applied ~= "" then
+                    send_chat("Applied debuff: " .. last_applied) end
+                if not silent and name == "Status Trap" and last_applied ~= "" then
+                    send_chat("Applied status: " .. last_applied) end
+                last_applied = ""
                 count = count + 1
             end
         elseif item_id then
@@ -327,9 +341,9 @@ function Items.TriggerBirds()
     local ec_items = ec_list:get_field("mItems")
     if not ec_items then return false end
 
-    -- Spawn two of each bird type at the player's location
-    local bird_types = {"atk", "atk", "def", "def", "hp", "hp", "stm", "stm"}
-    for _,bird_type in ipairs(bird_types) do
+    -- Spawn two atk/def birds and 5 hp/stm birds at the player's location
+    local bird_types = {"atk", "atk", "def", "def", "hp", "hp", "hp", "hp", "hp", "stm", "stm", "stm", "stm", "stm"}
+    for _,bird_type in pairs(bird_types) do
         -- Get the bird data from prefabs
         local ec_bird = ec_items[SPIRIT_BIRDS[bird_type]]
         if not ec_bird then return false end
@@ -394,6 +408,7 @@ function Items.TriggerBuff()
             player_data:set_field("_AtkUpBuffSecond", buff_strength)
             player_data:set_field("_AtkUpBuffSecondTimer", 12000)
         end
+        last_applied = "Attack Up"
         return true
     elseif buff == "def" then
         local def_timer = player_data:get_field("_DefUpBuffSecondTimer")
@@ -406,6 +421,7 @@ function Items.TriggerBuff()
             player_data:set_field("_DefUpBuffSecond", buff_strength)
             player_data:set_field("_DefUpBuffSecondTimer", 12000)
         end
+        last_applied = "Defense Up"
         return true
     elseif buff == "fish_regen" then
         local fish_timer = player_data:get_field("_FishRegeneEnableTimer")
@@ -416,6 +432,7 @@ function Items.TriggerBuff()
         else
             player_data:set_field("_FishRegeneEnableTimer", 12000)
         end
+        last_applied = "Fish Regeneration"
         return true
     elseif buff == "stamina_buff" then
         player_data:set_field("_StaminaUpBuffSecondTimer", 12000)
@@ -430,9 +447,11 @@ function Items.TriggerBuff()
             player_data:set_field("_AtkUpEcSecond", 25)
             player_data:set_field("_AtkUpEcSecondTimer", 12000)
         end
+        last_applied = "stamina_buff"
         return true
     elseif buff == "no_debuff" then
         player_data:set_field("_DebuffPreventionTimer", 12000)
+        last_applied = "Debuff Prevention"
         return true
     else
         return false
@@ -477,28 +496,36 @@ function Items.TriggerStatusTrap()
 
     if status == "fireblight" then
         masterPlayer:set_field("_FireLDurationTimer", 800)
+        last_applied = "Fireblight"
         return true
     elseif status == "waterblight" then
         masterPlayer:set_field("_WaterLDurationTimer", 1500)
+        last_applied = "Waterblight"
         return true
     elseif status == "iceblight" then
         masterPlayer:set_field("_IceLDurationTimer", 1500)
+        last_applied = "Iceblight"
         return true
     elseif status == "thunderblight" then
         masterPlayer:set_field("_ThunderLDurationTimer", 1500)
+        last_applied = "Thunderblight"
         return true
     elseif status == "dragonblight" then
         masterPlayer:set_field("_DragonLDurationTimer", 1500)
+        last_applied = "Dragonblight"
         return true
     elseif status == "blast" then
         -- note that this effect just makes the player explode instantly
         masterPlayer:set_field("_BombDurationTimer", 1)
+        last_applied = "Blastblight"
         return true
     elseif status == "stink" then
         masterPlayer:set_field("_StinkDurationTimer", 3000)
+        last_applied = "Stench"
         return true
     elseif status == "bleed" then
         masterPlayer:set_field("_BleedingDebuffTimer", 1000)
+        last_applied = "Bleed"
         return true
     else
         return false
@@ -525,9 +552,11 @@ function Items.TriggerDebuffTrap()
 
     if debuff == "def_down" then
         masterPlayer:set_field("_DefenceDownDurationTimer", 3000)
+        last_applied = "Defense Down"
         return true
     elseif debuff == "res_down" then
         masterPlayer:set_field("_ResistanceDownDurationTimer", 3000)
+        last_applied = "Resitance Down"
         return true
     else
         return false
