@@ -111,34 +111,33 @@ local function apply_resolved(ap_client, name, index)
     end
 
     -- Resolve one-time filler or trap items if they are new
-    if index > Items.last_index then
-        if name == "Full Heal" then
-            Items.TriggerHeal()
-        elseif name == "Free Birds" then
-            Items.TriggerBirds()
-        elseif name == "Random Buff" then
-            Items.TriggerBuff()
-        elseif name == "Dull Trap" then
-            Items.TriggerDullTrap()
-        elseif name == "Status Trap" then
-            Items.TriggerStatusTrap()
-        elseif name == "Debuff Trap" then
-            Items.TriggerDebuffTrap()
-        elseif Items.held[name] == nil then
-            -- If item isn't a single use, it goes in held
-            Items.held[name] = true
-        end
-        -- update last seen index, then return true
+    if Lookups.filler_names[name] ~= nil then
+        if index > Items.last_index then
+            if name == "Full Heal" then
+                Items.TriggerHeal()
+            elseif name == "Free Birds" then
+                Items.TriggerBirds()
+            elseif name == "Random Buff" then
+                Items.TriggerBuff()
+            elseif name == "Dull Trap" then
+                Items.TriggerDullTrap()
+            elseif name == "Status Trap" then
+                Items.TriggerStatusTrap()
+            elseif name == "Debuff Trap" then
+                Items.TriggerDebuffTrap()
+            end
         Items.last_index = index
         return true
+        end
+    else
+        if Items.held[name] == nil then
+            -- If item isn't a single use, it goes in held
+            Items.held[name] = true
+            return true
+        else
+            return false
+        end
     end
-
-    -- Set item index to latest value
-    if not Items.held[name] then
-        Items.held[name] = true
-       return true
-    end
-    return false
 end
 
 -- A simplified version of apply_resolved that is used for items that arrived prior to
