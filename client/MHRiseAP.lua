@@ -19,7 +19,7 @@ local Deathlink = require("AP_CLIENT/Deathlink")
 -- connect against slot_data.world_version; mismatch surfaces a chat
 -- warning. Keep in sync with ap_world/archipelago.json's world_version
 -- (the release workflow's drift guard fails the build if they diverge).
-local APWORLD_VERSION = "0.5.1"
+local APWORLD_VERSION = "0.5.2"
 
 local function log_info(msg) log.info("[MHRiseAP] " .. msg) end
 
@@ -86,12 +86,20 @@ AP_REF.on_slot_connected = function(slot_data)
     else
         log_info(string.format("world_version match: %s", APWORLD_VERSION))
     end
-    log_info(string.format(
+    if Lookups.mode == "hunt_a_thon" then
+        log_info(string.format(
         "Loaded %d monster mappings. starter=%s goal=%s",
         (function() local n = 0 for _ in pairs(Lookups.item_name_to_em_type) do n = n + 1 end return n end)(),
         tostring(Lookups.starting_monster),
-        tostring(Lookups.goal_monster)
-    ))
+        tostring(Lookups.goal_monster)))
+    else
+        log_info(string.format(
+        "Loaded %d quest mappings. starter=%s goal=%s",
+        (function() local n = 0 for _ in pairs(Lookups.quest_names) do n = n + 1 end return n end)(),
+        tostring(Lookups.quest_names[tostring(Lookups.starting_quest)]),
+        tostring(Lookups.quest_names[tostring(Lookups.goal_quest)])))
+    end
+
     Tracker.visible = true
     if Lookups.mode == "quest_rando" then
         local n_swaps = 0
@@ -120,6 +128,8 @@ AP_REF.on_slot_connected = function(slot_data)
         send_chat(string.format("[AP] Connected. Starter: %s. Goal: %s.",
             tostring(Lookups.starting_monster), tostring(Lookups.goal_monster)))
     end
+
+    Quests.ApplySwapsIfReady()
 end
 
 AP_REF.on_slot_refused = function(reasons)

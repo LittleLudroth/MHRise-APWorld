@@ -701,6 +701,7 @@ class MHRiseWorld(World):
                 slot_data["starting_weapon"] = (
                     self.starting_weapon["name"] if self.starting_weapon else None
                 )
+
         else:
             # The critical piece is `monster_em_type_map`: a dict from
             # license item name to the in-game EmType integer the death

@@ -45,10 +45,10 @@ end
 -- ---------------------------------------------------------------
 
 local function visit_param_array(field_name, visitor)
-    local qm = sdk.get_managed_singleton("snow.QuestManager")
-    if not qm then return false end
+    if Items.QuestManager == nil then Items.QuestManager = sdk.get_managed_singleton("snow.QuestManager") end
+    if not Items.QuestManager then return false end
     local container = nil
-    pcall(function() container = qm:get_field(field_name) end)
+    pcall(function() container = Items.QuestManager:get_field(field_name) end)
     if not container then return false end
     local arr = nil
     pcall(function() arr = container:get_field("_Param") end)
@@ -228,6 +228,7 @@ return true
 end
 
 function Quests.ApplySwaps()
+    log.info("[Quests] Applying Swaps")
     if Lookups.mode ~= "quest_rando" then return 0 end
     Quests.swap_attempts = Quests.swap_attempts + 1
 
@@ -274,8 +275,8 @@ end
 
 function Quests.ApplySwapsIfReady()
     if Lookups.mode ~= "quest_rando" then return end
-    local qm = sdk.get_managed_singleton("snow.QuestManager")
-    if not qm then return end
+    if Items.QuestManager == nil then Items.QuestManager = sdk.get_managed_singleton("snow.QuestManager") end
+    if not Items.QuestManager then return end
     Quests.ApplySwaps()
 end
 
@@ -284,10 +285,10 @@ end
 -- ---------------------------------------------------------------
 
 local function get_active_quest_no()
-    local qm = sdk.get_managed_singleton("snow.QuestManager")
-    if not qm then return nil end
+    if Items.QuestManager == nil then Items.QuestManager = sdk.get_managed_singleton("snow.QuestManager") end
+    if not Items.QuestManager then return nil end
     local qd = nil
-    pcall(function() qd = qm:call("getActiveQuestData") end)
+    pcall(function() qd = Items.QuestManager:call("getActiveQuestData") end)
     if not qd then return nil end
     local qn = nil
     pcall(function() qn = qd:call("getQuestNo") end)
@@ -452,12 +453,6 @@ function Quests.InstallHooks()
         (ok2 and "ok" or ("fail — " .. tostring(err2))))
 
     Quests.hooks_installed = ok1 and ok2
-
-    -- If the player is already in-game when slot connects, the
-    -- initQuestDataDictionary hook won't fire again at load. Apply
-    -- swaps immediately so the player doesn't need a title-screen
-    -- bounce.
-    Quests.ApplySwapsIfReady()
 end
 
 return Quests
