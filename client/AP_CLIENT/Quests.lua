@@ -29,7 +29,8 @@ local Session = require("AP_CLIENT/Session")
 local Tracker = require("AP_CLIENT/Tracker")
 local Weapons = require("AP_CLIENT/Weapons")
 
-Quests.hooks_installed = false
+Quests.init_hook_installed = false
+Quests.completion_hook_installed = false
 Quests.swaps_applied = false
 Quests.swap_attempts = 0
 Quests.last_swap_log = {}
@@ -274,6 +275,7 @@ function Quests.ApplySwaps()
 end
 
 function Quests.ApplySwapsIfReady()
+    log.info("[Quests] Checking if swaps should be instantly applied")
     if Lookups.mode ~= "quest_rando" then return end
     if Items.QuestManager == nil then Items.QuestManager = sdk.get_managed_singleton("snow.QuestManager") end
     if not Items.QuestManager then return end
@@ -441,18 +443,21 @@ local function install_completion_hook()
     return true
 end
 
-function Quests.InstallHooks()
-    if Quests.hooks_installed then return end
-
-    local ok1, err1 = install_init_dict_hook()
-    log.info("[Quests] initQuestDataDictionary hook: " ..
-        (ok1 and "ok" or ("fail — " .. tostring(err1))))
-
-    local ok2, err2 = install_completion_hook()
+function Quests.InstallCompletionHook()
+    if Quests.completion_hook_installed then return end
+    local ok, err = install_completion_hook()
     log.info("[Quests] setQuestClear hook: " ..
-        (ok2 and "ok" or ("fail — " .. tostring(err2))))
+        (ok and "ok" or ("fail — " .. tostring(err))))
+    Quests.completion_hook_installed = ok
+end
 
-    Quests.hooks_installed = ok1 and ok2
+function Quests.InstallInitDictHook()
+    if Quests.init_hook_installed then return end
+    local ok, err = install_init_dict_hook()
+    log.info("[Quests] initQuestDataDictionary hook: " ..
+        (ok and "ok" or ("fail — " .. tostring(err))))
+    Quests.init_hook_installed = ok
+    Quests.ApplySwapsIfReady()
 end
 
 return Quests

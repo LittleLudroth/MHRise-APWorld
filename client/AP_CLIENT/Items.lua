@@ -19,9 +19,9 @@ Items.reached_hard = false
 Items.reached_goal = false
 
 -- Cached singletons
-local PlayerManager
-local QuestManager
-local CreatureManager
+local PlayerManager = nil
+local QuestManager = nil
+local CreatureManager = nil
 
 -- A list of spawned birds that need to be deleted at quest's end
 local spawned_birds = {}
@@ -209,9 +209,12 @@ function Items.Receive(items, ap_client, silent)
     -- Check for a saved index value for this seed if we currently don't have one
     if Items.last_index == 0 then
         local filename = "APSAVE_" .. ap_client:get_seed() .. "_" .. ap_client:get_slot() .. ".json"
-        local savedata = json.load_file(filename)
-        if savedata ~= nil and savedata["last_index"] ~= nil then
-            Items.last_index = tonumber(savedata["last_index"])
+        local save_data = nil
+        local status, error = pcall(function() save_data = json.load_file(filename) end)
+        if status and save_data ~= nil and save_data["last_index"] ~= nil then
+            Items.last_index = tonumber(save_data["last_index"])
+        elseif not status then
+            log.info("[Quests] Save file load failed, error: " .. error)
         end
     end
     
@@ -568,7 +571,5 @@ function Items.TriggerDebuffTrap()
         return false
     end
 end
-
-re.on_script_reset(Items.ClearBirds())
 
 return Items

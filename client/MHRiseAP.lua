@@ -19,7 +19,7 @@ local Deathlink = require("AP_CLIENT/Deathlink")
 -- connect against slot_data.world_version; mismatch surfaces a chat
 -- warning. Keep in sync with ap_world/archipelago.json's world_version
 -- (the release workflow's drift guard fails the build if they diverge).
-local APWORLD_VERSION = "0.5.2"
+local APWORLD_VERSION = "0.5.3"
 
 local function log_info(msg) log.info("[MHRiseAP] " .. msg) end
 
@@ -119,6 +119,7 @@ AP_REF.on_slot_connected = function(slot_data)
                 n_swaps, starter_name, goal_name)
         end
         send_chat(banner)
+        Quests.InstallInitDictHook()
     elseif Weapons.enabled and Weapons.starting_weapon then
         send_chat(string.format("[AP] Connected. Starter: %s. Goal: %s. Weapon: %s.",
             tostring(Lookups.starting_monster),
@@ -128,8 +129,7 @@ AP_REF.on_slot_connected = function(slot_data)
         send_chat(string.format("[AP] Connected. Starter: %s. Goal: %s.",
             tostring(Lookups.starting_monster), tostring(Lookups.goal_monster)))
     end
-
-    Quests.ApplySwapsIfReady()
+    Quests.InstallCompletionHook()
 end
 
 AP_REF.on_slot_refused = function(reasons)
@@ -239,7 +239,6 @@ AP_REF.on_bounced = function(msg)
 end
 
 Monsters.InstallHook()
-Quests.InstallHooks()
 Deathlink.InstallHook()
 
 re.on_frame(function()
