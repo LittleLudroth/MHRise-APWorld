@@ -105,19 +105,29 @@ def convert(catalog_path: Path) -> None:
     print(f"  {len(armors_in)} raw entries", file=sys.stderr)
 
     kept: list[dict] = []
+    dropped: list[tuple[int, str]] = [] # armor_id, name
 
     for a in armors_in:
-        kept.append({
-            "armor_id": a["armor_id"],
-            "armor_name": a["armor_name"],
-            "armor_slot": a["armor_slot"],
-            "sex_type": a["sex_type"],
-            "rarity": a["rarity"],
-        })
+        if "Rejected" in a["armor_name"] or a["armor_name"] == "":
+            dropped.append((a["armor_id"], a["armor_name"]))
+        else:
+            kept.append({
+                "armor_id": a["armor_id"],
+                "armor_name": a["armor_name"],
+                "armor_slot": a["armor_slot"],
+                "sex_type": a["sex_type"],
+                "rarity": a["rarity"],
+            })
 
     kept.sort(key=lambda r: (r["armor_slot"], r["rarity"]))
 
     print(f"  kept: {len(kept)}", file=sys.stderr)
+    print(f"  dropped (rejected or empty name): {len(dropped)}",
+          file=sys.stderr)
+    if dropped:
+        print("    armor_id  | armor_name", file=sys.stderr)
+        for id, name in dropped:
+            print(f"    {id:>9} | {name}", file=sys.stderr)
 
     unknowns: dict[str, set[int]] = {}
     write_module(kept, catalog_path, unknowns)

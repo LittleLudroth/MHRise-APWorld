@@ -54,8 +54,6 @@ local function extract_data(armor_data, armor_slot)
     pcall(function() out.rarity = armor_data:call("getRare") end)
     pcall(function() out.sex_type = armor_data:call("getSexualEquipableFlag") end)
     pcall(function() out.armor_id = armor_data:call("get_Id") end)
-    pcall(function() out.valid = armor_data:call("isValid") end)
-
     return out
 end
 
