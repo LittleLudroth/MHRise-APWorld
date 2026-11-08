@@ -149,6 +149,7 @@ local function build_sections()
     local available_weapons = {}
     local hunted = {}
     local locked = {}
+    local licensed = {}
 
     -- Iterate the string-keyed forward map (item_name -> em_type)
     -- rather than the int-keyed reverse map. REFramework's Lua VM
@@ -174,6 +175,8 @@ local function build_sections()
             hunted[#hunted + 1] = name
         elseif (Items.Has(license_name) and can_reach_tier) or name == Lookups.starting_monster then
             available_monsters[#available_monsters + 1] = name
+        elseif Items.Has(license_name) then
+            licensed[#licensed + 1] = name
         else
             locked[#locked + 1] = name
         end
@@ -207,7 +210,8 @@ local function build_sections()
     table.sort(available_weapons)
     table.sort(hunted)
     table.sort(locked)
-    return available_monsters, available_weapons, hunted, locked
+    table.sort(licensed)
+    return available_monsters, licensed, available_weapons, hunted, locked
 end
 
 -- QuestRando sections.
@@ -342,14 +346,14 @@ function Tracker.Draw()
 
     -- Build sections OUTSIDE the imgui begin/end pair so a bad table
     -- iteration can't leave imgui in a half-open state.
-    local available_monsters, available_weapons, hunted_monsters, locked_monsters
+    local available_monsters, license_monsters, available_weapons, hunted_monsters, locked_monsters
     local available_quests, inaccessible_quests, locked_quests, cleared_quests, quest_weapons
     local build_ok, build_err = pcall(function()
         if Lookups.mode == "quest_rando" then
             available_quests, inaccessible_quests, locked_quests, cleared_quests = build_quest_sections()
             quest_weapons = build_quest_weapon_section()
         else
-            available_monsters, available_weapons, hunted_monsters, locked_monsters = build_sections()
+            available_monsters, license_monsters, available_weapons, hunted_monsters, locked_monsters = build_sections()
         end
     end)
     if not build_ok then
@@ -378,7 +382,8 @@ function Tracker.Draw()
                     draw_section("Available Weapons", available_weapons)
                 end
                 draw_section("Hunted Monsters", hunted_monsters)
-                draw_section("Locked Monsters", locked_monsters)
+                draw_section("Sphere Locked Monsters", license_monsters)
+                draw_section("License Locked Monsters", locked_monsters)
             end
         end
         imgui.end_window()
