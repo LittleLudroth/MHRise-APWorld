@@ -382,7 +382,7 @@ function Tracker.Draw()
                     draw_section("Available Weapons", available_weapons)
                 end
                 draw_section("Hunted Monsters", hunted_monsters)
-                draw_section("Sphere Locked Monsters", license_monsters)
+                draw_section("Difficulty Locked Monsters", license_monsters)
                 draw_section("License Locked Monsters", locked_monsters)
             end
         end
