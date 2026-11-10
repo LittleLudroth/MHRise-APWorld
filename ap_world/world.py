@@ -20,10 +20,13 @@ from .data.monsters import MONSTERS, SUNBREAK_MONSTERS
 from .data.monster_categories import EASY_MONSTERS, MEDIUM_MONSTERS, HARD_MONSTERS, MASTER_RANK_ONLY_EMS
 from .data.quests import QUESTS, EnemyLv
 from .data.weapons import WEAPONS
+from .data.weapon_data import WEAPON_DATA, Rarity, WeaponType, ElementType
+from .data.armor_data import ARMOR_DATA, ArmorSlot, Rarity, SexType
+from .data.decoration_data import DECORATION_JEWELS
 from .items import _in_questrando_pool, _in_questrando_hub_pool, _in_questrando_mr_pool, \
                     _in_questsanity_pool, _in_questsanity_hub_pool, _in_questsanity_mr_pool
 from .items import STARTER_QUEST_NO, HUB_STARTER_QUEST_NO
-from .options import Mode, QuestRandoPool
+from .options import Mode, QuestRandoPool, GenderlockedArmorSets
 from .web_world import MHRiseWebWorld
 
 # Read world_version from the manifest via pkgutil so this works whether
@@ -118,6 +121,13 @@ class MHRiseWorld(World):
     # initQuestDataDictionary post-hook (Probe 3 idiom). The goal
     # quest is NOT in this map (vanilla Magnamalo preserved).
     quest_swaps: dict[int, list[str]]
+
+    # The contents of each equipment pack, split by type
+    # Each list contains the ids of items to be created
+    # Other currently only has decoration materials, when relevant
+    equipment_pack_weapons: list[list[int]]
+    equipment_pack_armor: list[list[int]]
+    equipment_pack_other: list[list[int]]
 
     def generate_early(self) -> None:
         if self.options.mode.value == Mode.option_hunt_a_thon:
@@ -550,6 +560,186 @@ class MHRiseWorld(World):
 
             # Display selected starting weapon during generation
             logging.info(f"Starting weapon is {self.starting_weapon["name"]}")
+
+        # Generate the random equipment pack contents
+        if self.options.quest_rando_pool.value == QuestRandoPool.option_quest_rando_village:
+            # Restrict weapons included in pack to weapons in weapon pool if 
+            # there is a weapon pool
+            if bool(self.options.include_weapons.value):
+                weapon_types = set([w for w in list(WeaponType) if w in self.weapon_pool])
+            else:
+                weapon_types = set(WeaponType)
+                weapon_types.remove(WeaponType.Kinsect) # kinsects unlock for purchase, don't need to provide
+
+            # Define a filter function that gathers all valid armor of a rarity
+            # and returns a dict with 5 entries, one for each armor slot
+            def _filter_armor(rarity):
+                # filter by rarity
+                armors = [a for a in ARMOR_DATA if a["rarity"] == rarity]
+
+                # filter by sex requirements
+                if self.options.genderlocked_armor_sets.value == GenderlockedArmorSets.option_female_only:
+                    armors = filter(lambda a: a["sex_type"] == SexType.Both
+                                     or a["sex_type"] == SexType.FemaleOnly, armors)
+                elif self.options.genderlocked_armor_sets.value == GenderlockedArmorSets.option_male_only:
+                    armors = filter(lambda a: a["sex_type"] == SexType.Both
+                                     or a["sex_type"] == SexType.MaleOnly, armors)
+                else:
+                    armors = filter(lambda a: a["sex_type"] == SexType.Both, armors)
+
+                # Split by armor slot and return
+                output = {}
+                for slot in list(ArmorSlot):
+                    slot_armors = [a for a in armors if a["armor_slot"] == slot]
+                    output[slot] = slot_armors
+                
+                return output
+
+            # define a filter function that gathers all valid weapons of a rarity
+            # and returns a dict with an entry for each weapon type
+            def _filter_weapons(rarity):
+                # filter by rarity
+                weapons = [w for w in WEAPON_DATA if w["rarity"] == rarity]
+
+                # split by available weapon types and return
+                output = {}
+                for wt in weapon_types:
+                    slot_weapons = [w for w in weapons if w["weapon_type"] == wt]
+                    output[wt] = slot_weapons
+                return output
+
+            # define a function that returns a list of decoration material ids for
+            # a given rarity. The client will add 5 of each material for each pack.
+            def _get_decos(rarity):
+                if rarity < Rarity.Ra4: # no decos in low rank
+                    return []
+                if rarity < Rarity.Ra6: # aquaglow starts in 4*
+                    return [DECORATION_JEWELS["Aquaglow Jewel"]]
+                if rarity < Rarity.Ra7: # Bloodrun starts in 6*
+                    return [DECORATION_JEWELS["Aquaglow Jewel"], DECORATION_JEWELS["Bloodrun Jewel"]]
+                if rarity < Rarity.Ra9: # Lazurite starts with 7*
+                    return [DECORATION_JEWELS["Aquaglow Jewel"], DECORATION_JEWELS["Bloodrun Jewel"],
+                            DECORATION_JEWELS["Lazurite Jewel"]]
+                else: # Soverign starts in MR 5*, Anomaly is postgame only
+                    return [DECORATION_JEWELS["Aquaglow Jewel"], DECORATION_JEWELS["Bloodrun Jewel"],
+                            DECORATION_JEWELS["Lazurite Jewel"], DECORATION_JEWELS["Sovereign Jewel"]]
+
+            # Generate a starting equip set of Ra1 gear
+            # This special set includes 3 of each weapon type and 3 armor sets
+            # Due to limited variety, it doesn't care about repeated weapon elements
+            for rare in [Rarity.Ra1]:
+                available_armor = _filter_armor(rare)
+                available_weapons = _filter_weapons(rare)
+                selected_weapons = []
+                selected_armor = []
+
+                for wt in weapon_types:
+                    selected_weapons += [w["weapon_id"] for w in self.random.sample(available_weapons[wt], 3)]
+
+                for slot in ArmorSlot:
+                    selected_armor += [a["armor_id"] for a in self.random.sample(available_armor[slot], 3)]
+
+                self.equipment_pack_weapons.append(selected_weapons)
+                self.equipment_pack_armor.append(selected_armor)
+                self.equipment_pack_other.append(_get_decos(rare))
+
+            if self.options.quest_rando_pool.value == QuestRandoPool.option_quest_rando_village:
+                rarity_pool = [Rarity.Ra2, Rarity.Ra3]
+            else:
+                rarity_pool = [Rarity.Ra2, Rarity.Ra3, Rarity.Ra4, Rarity.Ra5, Rarity.Ra6, Rarity.Ra7]
+
+            # TODO: Refactor loop as function to reduce code duplication
+            # generate two packs each of base game rarities depending on pool
+            # NOTE: Ra7 lacks sleep and para weapons
+            for rare in rarity_pool:
+                # Gather candidate weapons and armor
+                available_armor = _filter_armor(rare)
+                available_weapons = _filter_weapons(rare)
+
+                # Select 6 target weapon elements for the tier
+                available_elements = self.random.sample(list(ElementType), 6)
+
+                # prepare lists for each packs weapons and armor
+                pack_one_weapons = []
+                pack_two_weapons = []
+                pack_one_armor = []
+                pack_two_armor = []
+
+                # For each relevant weapon type, select one weapon of each target element
+                # Split the 6 weapons across packs 1 and 2
+                for wt in weapon_types:
+                    selected_weapons = []
+                    for elem in available_elements:
+                        weapons_with_elem = [w["weapon_id"] for w in available_weapons[wt] if w["element_type"] == elem]
+
+                        # Fallback that handles cases where a weapon element doesn't exist in a rarity
+                        # In these cases, pick a random weapon of any element
+                        # This can, in rare cases, result in a duplicate.
+                        # I think that's funny, so it stays for now
+                        if not weapons_with_elem:
+                            selected_weapons.append(self.random.choice([w["weapon_id"] for w in available_weapons[wt]]))
+                        else:
+                            selected_weapons.append(self.random.choice(weapons_with_elem))
+
+                    pack_one_weapons += selected_weapons[:3]
+                    pack_two_weapons += selected_weapons[3:]
+
+                # Select 6 armor pieces for each slot, split across both packs
+                for slot in ArmorSlot:
+                    selected_armor = [a["armor_id"] for a in self.random.sample(available_armor[slot], 6)]
+                    pack_one_armor += selected_armor[:3]
+                    pack_two_armor += selected_armor[3:]
+
+                # Add pack contents to list of packs
+                self.equipment_pack_weapons.append(pack_one_weapons)
+                self.equipment_pack_weapons.append(pack_two_weapons)
+                self.equipment_pack_armor.append(pack_one_armor)
+                self.equipment_pack_armor.append(pack_two_armor)
+                self.equipment_pack_other.append(_get_decos(rare))
+                self.equipment_pack_other.append(_get_decos(rare))
+                
+            if self.options.quest_rando_pool.value == QuestRandoPool.option_quest_rando_sunbreak:
+                # Generate 4 packs each of Ra8 - Ra10 gear
+                # NOTE: Ra9 lacks sleep weapons
+                for rare in [Rarity.Ra8, Rarity.Ra9, Rarity.Ra10]:
+                    # Gather candidate weapons and armor
+                    available_armor = _filter_armor(rare)
+                    available_weapons = _filter_weapons(rare)
+    
+                    # Select 2 repeat weapon elements for the tier
+                    repeat_elements = self.random.sample(list(ElementType), 2)
+    
+                    # prepare a list of pack contents
+                    pack_weapons = []
+                    pack_armor = []
+    
+                    # For each relevant weapon type, select one weapon of each target element
+                    # Split the 12 weapons across 4 packs
+                    for wt in weapon_types:
+                        selected_weapons = []
+                        for elem in list(ElementType) + repeat_elements: # Also has dupe possibility, still don't care
+                            weapons_with_elem = [w["weapon_id"] for w in available_weapons[wt] if w["element_type"] == elem]
+    
+                            # Fallback that handles cases where a weapon element doesn't exist in a rarity
+                            # In these cases, pick a random weapon of any element
+                            # This can, in rare cases, result in a duplicate.
+                            # I think that's funny, so it stays for now
+                            if not weapons_with_elem:
+                                selected_weapons.append(self.random.choice([w["weapon_id"] for w in available_weapons[wt]]))
+                            else:
+                                selected_weapons.append(self.random.choice(weapons_with_elem))
+    
+                        pack_weapons += [selected_weapons[:3], selected_weapons[3:6], selected_weapons[6:9], selected_weapons[9:]]
+    
+                    # Select 6 armor pieces for each slot, split across both packs
+                    for slot in ArmorSlot:
+                        selected_armor = [a["armor_id"] for a in self.random.sample(available_armor[slot], 12)]
+                        pack_armor += [selected_armor[:3], selected_armor[3:6], selected_armor[6:9], selected_armor[9:]]
+    
+                    # Add pack contents to list of packs
+                    self.equipment_pack_weapons += pack_weapons
+                    self.equipment_pack_armor += pack_armor
+                    self.equipment_pack_other += [_get_decos(rare)] * 4
 
     def create_regions(self) -> None:
         regions.create_and_connect_regions(self)

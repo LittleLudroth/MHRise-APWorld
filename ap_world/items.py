@@ -36,6 +36,8 @@ ID layout:
        reservations.
 - 9999: Poogie (no effect filler)
 - 10000..10999: Filler Items and Traps
+- 11000: Progressive Gear Packs (Progressive items used by questrando to grant
+         armor and weapons to player)
 
 The Lua client receives the EmType / quest-id maps via slot_data on
 connect, so it never needs to read the master tables from disk.
@@ -336,12 +338,14 @@ VILLAGE_QUESTS: tuple[dict, ...] = QUESTSANITY_VILLAGE_QUESTS
 DEFAULT_FILLER_ITEM = "Poogie"
 FILLER_ITEM_NAMES = ["Full Heal", "Free Birds", "Random Buff"]
 TRAP_ITEM_NAMES = ["Dull Trap", "Status Trap", "Debuff Trap"]
+EQUIPMENT_PACK_NAME = "Progressive Equipment Pack"
 
 WEAPON_LICENSE_ID_BASE = 9100
 QUEST_UNLOCK_ID_BASE = 2000
 HUB_QUEST_UNLOCK_ID_BASE = 3000
 MR_QUEST_UNLOCK_ID_BASE = 4000
 FILLER_ITEM_ID_BASE = 10000
+PROGRESSIVE_GEAR_ID = 11000
 
 
 def quest_display_name(quest: dict) -> str:
@@ -399,6 +403,8 @@ for _i, _weapon in enumerate(WEAPONS):
     _name = f"{_weapon['name']} License"
     assert _name not in ITEM_NAME_TO_ID, f"duplicate license name {_name}"
     ITEM_NAME_TO_ID[_name] = WEAPON_LICENSE_ID_BASE + _i
+
+ITEM_NAME_TO_ID["Progressive Equipment Pack"] = PROGRESSIVE_GEAR_ID
 
 
 # Precomputed lookup: quest unlock item name -> quest dict. Used by
@@ -462,6 +468,11 @@ def create_item_with_correct_classification(world: MHRiseWorld, name: str) -> MH
         # produces FillError. `useful` keeps them prioritized for
         # placement without entering the progression-balancing math.
         classification = ItemClassification.useful
+    elif name == EQUIPMENT_PACK_NAME:
+        # QuestRando progressive gear packs are progression. Logic
+        # expects a certain number of them for each quest tier
+        # unlike licenses, they aren't a gate client-side
+        classification = ItemClassification.progression
     else:
         # Monster licenses are progression — each one gates the player's
         # access to its monster's hunt locations.
@@ -665,6 +676,16 @@ def _create_items_questrando(world: MHRiseWorld) -> None:
                 world.multiworld.local_early_items[world.player].get(item_name, 0) + 1
             )
 
+    # Add Progressive Equipment items to the pool
+    # The number of packs depends on which questrando pool was 
+    # selected by the player.
+    # Village has 5 gear packs (2 Ra2, 2 Ra3, 1 spare)
+
+    for _ in range(5):
+        item = create_item_with_correct_classification(world, EQUIPMENT_PACK_NAME)
+        itempool.append(item)
+
+
     # Spare slots = unfilled (excludes the Victory-locked goal slot)
     # minus the unlock items we just placed. Reserve ≥1 for Poogie so
     # the EXCLUDED goal Clear (1/2) can be filled — weapon licenses are
@@ -770,6 +791,20 @@ def _create_items_questrando_hub(world: MHRiseWorld) -> None:
             world.multiworld.local_early_items[world.player][item_name] = (
                 world.multiworld.local_early_items[world.player].get(item_name, 0) + 1
             )
+    
+    # Add Progressive Equipment items to the pool
+    # The number of packs depends on which questrando pool was 
+    # selected by the player.
+    # Hub has 14 gear packs (2 each for Ra2-Ra7, 2 spare)
+    # Sunbreak has 27 gear packs (2 each for Ra2-Ra7, 4 each for Ra8-Ra10, 3 spare)
+    if world.options.quest_rando_pool.value == QuestRandoPool.option_quest_rando_hub:
+        for _ in range(14):
+            item = create_item_with_correct_classification(world, EQUIPMENT_PACK_NAME)
+            itempool.append(item)
+    elif world.options.quest_rando_pool.value == QuestRandoPool.option_quest_rando_sunbreak:
+        for _ in range(27):
+            item = create_item_with_correct_classification(world, EQUIPMENT_PACK_NAME)
+            itempool.append(item)
 
     # Spare slots = unfilled (excludes the Victory-locked goal slot)
     # minus the unlock items we just placed. Reserve ≥1 for Poogie so

@@ -46,6 +46,7 @@ class MHRiseWebWorld(WebWorld):
             mhrise_options.QuestRandoPool,
             mhrise_options.Questsanity,
             mhrise_options.RandomizeQuestMonsters,
+            mhrise_options.GenderlockedArmorSets,
         ]),
         OptionGroup("Weapon Settings", [
             mhrise_options.IncludeWeapons,

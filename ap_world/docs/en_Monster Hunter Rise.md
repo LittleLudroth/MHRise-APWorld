@@ -57,6 +57,15 @@ The **goal** is clearing a target urgent quest. The specific quest depends
 on which quest pool you select. The default village quest pool targets
 **Comeuppance** (vanilla Magnamalo), the hub quest pool targets **Serpent Goddess of Thunder**, (vanilla Narwa) and the sunbreak quest pool targets **Proof of Courage** (vanilla Gaismagorm).
 
+The randomized nature of bosses can cause issues with monster material drops.
+In order to compensate for this, there are Progressive Equipment Pack items
+added to the item pool, as well as an initial gear drop of Rarity 1 equipment.
+Equipment packs contain random weapons and armor of a given rarity. The rarity of
+the gear increases as more packs are collected. Each item pack will contain three of every enabled
+weapon class, as well as three pieces of armor for each slot. There are two packs per gear rarity
+for base game rarities (Ra2-Ra7), and four packs per rarity for sunbreak rarities (Ra8-Ra10). Packs contain materials
+for decorations as well, and the costs/unlock requirements of decorations have been greatly reduced.
+
 The `RandomizeQuestMonsters` option (default **on**) controls the swap.
 Turn it off and the quests keep their vanilla bosses — the mode reduces
 to gating clear-checks on the `Unlock:` items without changing any

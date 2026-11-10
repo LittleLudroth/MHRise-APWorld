@@ -28,6 +28,8 @@ Options that apply per mode:
 - ExcludedMonsters: both modes. Allows player to manually remove monsters
   from the pool.
 - Deathlink: both modes. Enables or disables deathlink.
+- GenderlockedArmorSets: QuestRando only: Allows player to enable gender
+  specific armor sets in equipment packs
 """
 
 from __future__ import annotations
@@ -239,6 +241,19 @@ class TrapChance(Range):
     range_start = 0
     range_end = 100
     default = 0
+
+class GenderlockedArmorSets(Choice):
+    """
+    QuestRando Only: select a specific character gender to enable gender specific armor sets
+    in randomized Progressive Equipment packs. Selecting 'both' will only allow armor sets
+    that can be used by both genders.
+    """
+    display_name = "Genderlocked Armor Sets"
+    option_both = 0
+    option_male_only = 1
+    option_female_only = 2
+    option_either = 0
+    
   
 @dataclass
 class MHRiseOptions(PerGameCommonOptions):
@@ -257,3 +272,4 @@ class MHRiseOptions(PerGameCommonOptions):
     monster_count: MonsterCount
     deathlink: Deathlink
     trap_chance: TrapChance
+    genderlocked_armor_sets: GenderlockedArmorSets
